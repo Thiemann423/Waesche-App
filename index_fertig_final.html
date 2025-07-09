@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wäschausgabe</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
+    .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
+    canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
+    button { padding: 10px 20px; margin-top: 10px; }
+    .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    h2 { margin-top: 40px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <h1>Wäscheauftrag</h1>
+
+  <select id="kategorieSelect" onchange="kategorieWechsel()">
+  <option value="frauen" selected>Mitarbeiterin</option>
+  <option value="maenner">Mitarbeiter</option>
+  <option value="zeitarbeiter">Zeitarbeiter</option>
+</select>
+
+
+  <label>Mitarbeiter suchen:</label>
+  <input list="mitarbeiterListe" id="mitarbeiterInput">
+  <datalist id="mitarbeiterListe"></datalist>
+
+  <label>Spindnummer suchen:</label>
+  <input id="idInput" placeholder="z. B. 012 oder 12" oninput="sucheNachID()">
+
+  <label>Abteilung:</label>
+  <input id="abteilung">
+
+  <label>Ausgabedatum:</label>
+  <input type="date" id="datum">
+
+  <div id="artikelContainer"></div>
+  <button onclick="addArtikel()">+ Artikel hinzufügen</button>
+
+  <label>Bemerkung:</label>
+  <textarea id="bemerkung"></textarea>
+
+  <h3>Unterschrift Mitarbeiter</h3>
+  <canvas id="sigMitarbeiter"></canvas>
+  <button onclick="clearCanvas('sigMitarbeiter')">Löschen</button>
+
+  <h3>Unterschrift Ausgabe</h3>
+  <canvas id="sigAusgabe"></canvas>
+  <button onclick="clearCanvas('sigAusgabe')">Löschen</button>
+
+  <button onclick="abschliessen()">Ausgabe abschließen & PDF speichern</button>
+  <button onclick="rueckgabeAbschliessen()">Rückgabe abschließen & PDF speichern</button>
+
+ <h2>Bestand verwalten</h2>
+<button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
+<div class="bestand-container">
+  <div id="bestandEingabeContainer"></div>
+  <button onclick="saveBestand()">Bestand speichern</button>
+  <h3>Aktueller Bestand</h3>
+  <table id="bestandTabelle">
+    <thead>
+      <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
+
+
+<h2>Dashboard</h2>
+<button onclick="toggleDashboardAnzeige()" id="toggleDashboardBtn">Dashboard anzeigen</button>
+<div class="dashboard-container">
+  <label>Mitarbeiter suchen:</label>
+  <input type="text" id="dashboardSearch" oninput="filterDashboard()" placeholder="Name eingeben...">
+  
+  <label>Von:</label>
+  <input type="date" id="startDate" oninput="filterDashboard()">
+  
+  <label>Bis:</label>
+  <input type="date" id="endDate" oninput="filterDashboard()">
+  
+  <h3>Alle Ausgaben</h3>
+  <table id="dashboardTabelle">
+    <thead>
+      <tr><th>Datum</th><th>Mitarbeiter</th><th>Artikel</th><th>Größe</th><th>Anzahl</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
+<h2>Mitarbeiter verwalten</h2>
+<button onclick="toggleMitarbeiterVerwaltung()" id="toggleMitarbeiterBtn">Mitarbeiterverwaltung anzeigen</button>
+<div class="mitarbeiter-container" style="display: none;">
+  <h3>Neuen Mitarbeiter hinzufügen</h3>
+  <label>Name:</label>
+  <input type="text" id="neuerName">
+
+  <label>Spindnummer:</label>
+  <input type="text" id="neuerSpind">
+
+  <button onclick="addMitarbeiter()">Speichern</button>
+
+ <h3>Freie Spindnummern</h3>
+<div id="freieSpindnummernContainer" style="display: none; column-count: 5; column-gap: 20px;"></div>
+<button id="toggleSpindBtn" onclick="toggleFreieSpindnummern()">Freie Spindnummern anzeigen</button>
+
+
+<h3>Aktuelle Mitarbeiter</h3>
+<label>Suche:</label>
+<input type="text" id="mitarbeiterSearch" placeholder="Name oder Spindnummer eingeben..." oninput="filterMitarbeiterTabelle()">
+<table id="mitarbeiterTabelle">
+  <thead>
+    <tr><th>Name</th><th>Spind</th><th>Aktionen</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+
+
+  <script>
+const frauenMitarbeiterListe = [
+  // Frauen
+ 
+  { nummer: "1", name: "Burak Olha" },
+  { nummer: "2", name: "Craciun Virginia" },
+  { nummer: "3", name: "Taranto Cecilia-Anne" },
+  { nummer: "4", name: "Cozmariu Elisabeta" },
+  { nummer: "6", name: "Kleine Andrea" },
+  { nummer: "7", name: "Ziske Viktoria" },
+  { nummer: "8", name: "Koch Liubov" },
+  { nummer: "9", name: "Bober Monika" },
+  { nummer: "10", name: "Bantas Maria" },
+  { nummer: "11", name: "Kipka Edith" },
+  { nummer: "12", name: "Alo Sabah" },
+  { nummer: "13", name: "Sparenberg-Ganswindt Meike" },
+  { nummer: "14", name: "Martyin Timea" },
+  { nummer: "15", name: "Puiu Claudita" },
+  { nummer: "16", name: "Müller Karolin" },
+  { nummer: "17", name: "Hundertmark Birgit" },
+  { nummer: "19", name: "Legler Irena" },
+  { nummer: "20", name: "Andreica Maria" },
+  { nummer: "21", name: "Geiger Elena" },
+  { nummer: "22", name: "Korniyenko, Fevroniia" },
+  { nummer: "23", name: "Koriakina Valentyna" },
+  { nummer: "24", name: "Guzun Diana" },
+  { nummer: "25", name: "Chmylenko Olena" },
+  { nummer: "26", name: "Fedorenko Mariia" },
+  { nummer: "27", name: "Romanciuc, Vera" },
+  { nummer: "28", name: "Puti Maria" },
+  { nummer: "29", name: "Heidt Ludmilla" },
+  { nummer: "30", name: "Lohvynenko Svitlana" },
+  { nummer: "31", name: "Canalas Viorica" },
+  { nummer: "32", name: "Förster Dunja" },
+  { nummer: "33", name: "Nolting Laura" },
+  { nummer: "34", name: "Moldovan Ana-Maria" },
+  { nummer: "35", name: "Sassu Claudia" },
+  { nummer: "36", name: "Phohbun Saiphin" },
+  { nummer: "37", name: "Rotariu Mirela" },
+  { nummer: "38", name: "Florea Ionica" },
+  { nummer: "39", name: "Schoppe Martina" },
+  { nummer: "40", name: "Costa Camelia" },
+  { nummer: "41", name: "Kemmerich-Pook, Laura" },
+  { nummer: "42", name: "Liabina Yanina" },
+  { nummer: "43", name: "Zellober Gabriele" },
+  { nummer: "44", name: "Moldovan Emanuela" },
+  { nummer: "46", name: "Fahr Kerstin" },
+  { nummer: "47", name: "Langemann Elena" },
+  { nummer: "48", name: "Weiße Cornelia" },
+  { nummer: "49", name: "Sadauskiene Inga" },
+  { nummer: "50", name: "Liabina Oleksandra" },
+  { nummer: "51", name: "Bukii Sofia" },
+  { nummer: "52", name: "Golebiewska Beata" },
+  { nummer: "53", name: "Golebiewska Julita" },
+  { nummer: "54", name: "Bukii Lilia" },
+  { nummer: "55", name: "Mevers Heike" },
+  { nummer: "56", name: "Eremia Ioana" },
+  { nummer: "57", name: "Licina Seniha" },
+  { nummer: "58", name: "Lytvynenko Viktoriia" },
+  { nummer: "59", name: "Eke Violeta" },
+  { nummer: "60", name: "Merten Elke" },
+  { nummer: "61", name: "Capra Elisabeta" },
+  { nummer: "62", name: "Ahrenhold Lara" },
+  { nummer: "63", name: "Chochlova Alina" },
+  { nummer: "64", name: "Lange Kerstin" },
+  { nummer: "65", name: "Moldovan Georgiana" },
+  { nummer: "66", name: "Steffen Kerstin" },
+  { nummer: "67", name: "Udoviene Nina" },
+  { nummer: "68", name: "Teslenko Oksana" },
+  { nummer: "69", name: "Dimitrova Teodora" },
+  { nummer: "70", name: "Schmidt Nelli" },
+  { nummer: "71", name: "Andrei Ana-Maria" },
+  { nummer: "72", name: "Denysenko Nataliia" },
+  { nummer: "73", name: "Ivanova Mariana" },
+  { nummer: "74", name: "Krykunova, Halyna" },
+  { nummer: "75", name: "Mamontova Svitlana" },
+  { nummer: "76", name: "Grieger Agnieszka" },
+  { nummer: "77", name: "Pieper Franziska" },
+  { nummer: "78", name: "Ladner Ludmilla" },
+  { nummer: "79", name: "Fischer-Brandt, Ramona" },
+  { nummer: "80", name: "Moldovan Andra" },
+  { nummer: "81", name: "Bönig Joanna" },
+  { nummer: "82", name: "Bücker Regina" },
+  { nummer: "83", name: "Rakemann Ann-Kathrin" },
+  { nummer: "84", name: "Wasowska Emilia" },
+  { nummer: "85", name: "Wecke Susanne" },
+  { nummer: "86", name: "Adomariciene Judita" },
+  { nummer: "87", name: "Lutze Saskia" },
+  { nummer: "88", name: "Feraru, Ana-Maria" },
+  { nummer: "89", name: "Kharchenko Nataliia" },
+  { nummer: "90", name: "Ciubotaru Elena" },
+  { nummer: "91", name: "Babelek Malgorzata" },
+  { nummer: "92", name: "Manea Maria" },
+  { nummer: "93", name: "Reichenbach Katharina" },
+  { nummer: "94", name: "Enache Mihaela" },
+  { nummer: "95", name: "Busse Samantha" },
+  { nummer: "96", name: "Miksyte Ausra" },
+  { nummer: "97", name: "Zbierski Natalja" },
+  { nummer: "98", name: "Korthaneberg Miriam" },
+  { nummer: "99", name: "Iacob Ariana" },
+  { nummer: "100", name: "Melikidze Anjela" },
+  { nummer: "103", name: "Sfiea Ana-Maria" },
+  { nummer: "104", name: "Caracas Camilia" },
+  { nummer: "108", name: "Biere Andrea" },
+  { nummer: "111", name: "Ilinescu, Izabela" },
+  { nummer: "857", name: "Koch Liubov" },
+  { nummer: "850", name: "Pieper Franziska" }
+];
+
+ const maennerMitarbeiterListe = [
+  { nummer: "01", name: "Ayzenberh Oleksandr" },
+  { nummer: "02", name: "Witowski Alexander" },
+  { nummer: "03", name: "Frasincar Gabriel" },
+  { nummer: "04", name: "Pohl Edgar" },
+  { nummer: "05", name: "Hartmann Dirk" },
+  { nummer: "06", name: "Jacobi Daniel" },
+  { nummer: "08", name: "Kaiser-Koch, Michael" },
+  { nummer: "09", name: "Dolbin Andrii" },
+  { nummer: "010", name: "Belgacem, Jaber" },
+  { nummer: "011", name: "Klatt Severin" },
+  { nummer: "012", name: "Förster Christian" },
+  { nummer: "013", name: "Ganswindt, Stephan" },
+  { nummer: "014", name: "Nikolaev Eugen" },
+  { nummer: "015", name: "Silakov Kostiatyn" },
+  { nummer: "016", name: "Zurmühlen Hans" },
+  { nummer: "017", name: "Guhl Arne" },
+  { nummer: "018", name: "Bero Hussain" },
+  { nummer: "020", name: "Grieger Thomas" },
+  { nummer: "021", name: "Kharchenko Serhii" },
+  { nummer: "022", name: "Trujillo Carmelo" },
+  { nummer: "023", name: "Moniac  Daniel" },
+  { nummer: "024", name: "Pape, Florian Heinrich" },
+  { nummer: "025", name: "Heinze Martin" },
+  { nummer: "026", name: "Al Mahdawi Luay" },
+  { nummer: "027", name: "Karasov Oleksij" },
+  { nummer: "028", name: "Strelnikov Evgenij" },
+  { nummer: "029", name: "Leshchenko Denys" },
+  { nummer: "030", name: "Eitmonas Viktoras" },
+  { nummer: "031", name: "Cannizzaro Andreas" },
+  { nummer: "033", name: "Hoca Anton" },
+  { nummer: "034", name: "Leongardt Vladimir" },
+  { nummer: "035", name: "Yogeswaran" },
+  { nummer: "036", name: "Vass Iosif" },
+  { nummer: "037", name: "Bontea Radu" },
+  { nummer: "038", name: "Guzun Alexei" },
+  { nummer: "040", name: "Kreikenbohm Patrick" },
+  { nummer: "041", name: "Dybek Wieslaw" },
+  { nummer: "042", name: "Weimann Nick" },
+  { nummer: "043", name: "Martin Alexandru" },
+  { nummer: "044", name: "Ritter Alexander (1)" },
+  { nummer: "045", name: "Tiemann Frank" },
+  { nummer: "046", name: "Murgulet Ruben" },
+  { nummer: "047", name: "Köke Jonas" },
+  { nummer: "048", name: "Meier Nils" },
+  { nummer: "049", name: "Tiemann Frank (blau)" },
+  { nummer: "050", name: "Neufeld Alexander" },
+  { nummer: "051", name: "Marx Udo" },
+  { nummer: "053", name: "Karniszewski Antoni" },
+  { nummer: "054", name: "Löwens Tobias" },
+  { nummer: "055", name: "Schmidt Julian" },
+  { nummer: "056", name: "Stoljanov Alan" },
+  { nummer: "057", name: "Nguyen Hong" },
+  { nummer: "058", name: "Teodescu Florin" },
+  { nummer: "059", name: "Finder Waldemar" },
+  { nummer: "060", name: "Riwert Alexander" },
+  { nummer: "061", name: "Fast Valerien" },
+  { nummer: "062", name: "Tansase Costel" },
+  { nummer: "063", name: "Feraru, Nicolaie" },
+  { nummer: "064", name: "Babarczik Raimund Otto" },
+  { nummer: "065", name: "Gajfulin Dennis" },
+  { nummer: "066", name: "Boico Anatolie" },
+  { nummer: "067", name: "Boico Aurel" },
+  { nummer: "068", name: "Süß Jörg" },
+  { nummer: "070", name: "Buga Nicolae" },
+  { nummer: "071", name: "Honka Steven" },
+  { nummer: "072", name: "Grigoryan Armen" },
+  { nummer: "073", name: "Zyma Alexandru" },
+  { nummer: "074", name: "Bruns Christoph" },
+  { nummer: "075", name: "Bruns Christoph blaue Kleid." },
+  { nummer: "076", name: "Slusnys Darius" },
+  { nummer: "077", name: "Engelschmidt Torsten" },
+  { nummer: "078", name: "Jafar, Hamed" },
+  { nummer: "079", name: "Flore Sebastian" },
+  { nummer: "080", name: "Babelek Adrian" },
+  { nummer: "081", name: "Henneke Tobias" },
+  { nummer: "082", name: "Flebbe Peter" },
+  { nummer: "083", name: "Gorr Sergej" },
+  { nummer: "084", name: "Trif Oliviu" },
+  { nummer: "085", name: "Balzer Stefan" },
+  { nummer: "086", name: "Paschkov Sergej" },
+  { nummer: "087", name: "Erdmann Viktor" },
+  { nummer: "088", name: "Masur Jörg" },
+  { nummer: "089", name: "Ehlert Marco" },
+  { nummer: "090", name: "Leongardt Evgenij" },
+  { nummer: "091", name: "Norman Daniel" },
+  { nummer: "093", name: "Andre Thorsten" },
+  { nummer: "094", name: "David Heinrich" },
+  { nummer: "095", name: "Bero Sulaiman" },
+  { nummer: "097", name: "Weike, Dirk" },
+  { nummer: "098", name: "Buzzi Adrian" },
+  { nummer: "099", name: "Myroshychenko, Oleksandr" },
+  { nummer: "0100", name: "Bukii Serhii" },
+  { nummer: "0101", name: "Prüßmann Sören" },
+  { nummer: "0102", name: "Zurmühlen Marcel" },
+  { nummer: "0103", name: "Cruz Juan" },
+  { nummer: "0104", name: "Raschke Matthias (blau)" },
+  { nummer: "0105", name: "Raschke Matthias" },
+  { nummer: "0106", name: "Gutu Jonut" },
+  { nummer: "0107", name: "Morris, Nathan" },
+  { nummer: "0108", name: "Höger Martin" },
+  { nummer: "0109", name: "Florea Valentin" },
+  { nummer: "0110", name: "Chochlov Pavel" },
+  { nummer: "0111", name: "Bober, Rafal" },
+  { nummer: "0112", name: "Mekonnen Belay, Tsehaye" },
+  { nummer: "0113", name: "Plat Wilhelm" },
+  { nummer: "0114", name: "Shevchenko Viktor" },
+  { nummer: "0115", name: "Barthelmes Arne" },
+  { nummer: "0117", name: "Duhm Oliver" },
+  { nummer: "0118", name: "Manea Stelian" },
+  { nummer: "0119", name: "Foti Giuseppe" },
+  { nummer: "0120", name: "Ochlast Patrick" },
+  { nummer: "0121", name: "Shipov, Mikhail" },
+  { nummer: "0122", name: "Abbasov Azar" },
+  { nummer: "0123", name: "Bero Haschem" },
+  { nummer: "0124", name: "Höffkes Rico" },
+  { nummer: "0125", name: "Kazinakis Nikolaus" },
+  { nummer: "0126", name: "Lacatus Florin" },
+  { nummer: "0127", name: "Ciuculete Andrei" },
+  { nummer: "0128", name: "Rose Thomas" },
+  { nummer: "0129", name: "Oleksy Oliver" },
+  { nummer: "0130", name: "Ciuculete George" },
+  { nummer: "0131", name: "Villaroel Miguel" },
+  { nummer: "0133", name: "Kalai Andrei" },
+  { nummer: "0134", name: "Strajeriu Marius" },
+  { nummer: "0135", name: "Prisacariu Robert" },
+  { nummer: "0136", name: "Ureche Gheorge" },
+  { nummer: "0137", name: "Strajeriu Ioan" },
+  { nummer: "0138", name: "Beyer Kai-Olaf" },
+  { nummer: "0139", name: "Micervicius Arunas" },
+  { nummer: "0140", name: "Moldovan Claudiu" },
+  { nummer: "0141", name: "Ivanov Ivan" },
+  { nummer: "0142", name: "Palimaru Ionut" },
+  { nummer: "0143", name: "Kulieyu Aliaksandr" },
+  { nummer: "0145", name: "Vogt Michael" },
+  { nummer: "0147", name: "Mihaila Florin" },
+  { nummer: "0148", name: "Ibrahem Sami" },
+  { nummer: "0149", name: "Constantin Daniel" },
+  { nummer: "0150", name: "Cuttone Christian" },
+  { nummer: "0151", name: "Wu Xinyang" },
+  { nummer: "0152", name: "Lincan Marius" },
+  { nummer: "0153", name: "Kirchberg, Rainer" },
+  { nummer: "0154", name: "Sandri Cristian" },
+  { nummer: "0155", name: "Shelia Paata" },
+  { nummer: "0158", name: "Dimitrov, Vasil" },
+  { nummer: "0160", name: "Sfiea Marian" },
+  { nummer: "0165", name: "Manea Mirca" },
+  { nummer: "0169", name: "Brill Niklas" },
+  { nummer: "0180", name: "Micu Gheorghita" },
+  { nummer: "0181", name: "Schulze Colin" },
+  { nummer: "0182", name: "Heghedus Alexandru" },
+  { nummer: "0184", name: "Kalai Gheorghe" },
+  { nummer: "0186", name: "Lohvynenko Yurii" },
+  { nummer: "0188", name: "Vozniuk Alexei" },
+  { nummer: "0190", name: "Ivzhenko Denys" },
+  { nummer: "0191", name: "Stypula Kevin" },
+  { nummer: "0192", name: "Caracas Costel" },
+  { nummer: "0196", name: "Lee Norman" },
+  { nummer: "0197", name: "Slayoy Ognian" },
+  { nummer: "0198", name: "Schmidtmann Dirk" },
+  { nummer: "0199", name: "Motkow Oleksii" },
+  { nummer: "0200", name: "Moldovan Dorel" },
+  { nummer: "0205", name: "Ilinescu Constantin" },
+  { nummer: "0231", name: "Starkov Dmytri" },
+  { nummer: "0232", name: "Krois Eric" },
+  { nummer: "0233", name: "Romanciuc, Iurie" },
+  { nummer: "0242", name: "Bultoc Vasile" },
+  { nummer: "998", name: "Wolter /Rathmann" },
+  { nummer: "999", name: "Wulf Stephan /Rathmann" },
+  { nummer: "851", name: "Pape Florian Heinrich" },
+  { nummer: "852", name: "Henneke Tobias" },
+  { nummer: "853", name: "Mai Benjamin" },
+  { nummer: "854", name: "Guhl Arne" },
+  { nummer: "855", name: "Ganswindt Stephan" },
+  { nummer: "856", name: "Schmidt Julian" },
+  { nummer: "800", name: "Merker Pascal" },
+  { nummer: "801", name: "Bosselmann Uwe" },
+  { nummer: "802", name: "Schemitko V." },
+  { nummer: "803", name: "Teiwes Dirk" },
+  { nummer: "804", name: "Mahlmann Udo" },
+  { nummer: "805", name: "Eggers Tim" },
+  { nummer: "806", name: "Leischner Felix" },
+  { nummer: "807", name: "Klotz Walter" },
+  { nummer: "810", name: "Ohm Maik" },
+  { nummer: "811", name: "Pfeiffer Ronny" },
+  { nummer: "812", name: "Küster Andreas" },
+  { nummer: "813", name: "Timmermann Jürgen" },
+  { nummer: "814", name: "Rosado Jesus" },
+  { nummer: "815", name: "Graf Joachim" },
+  { nummer: "816", name: "Müller-Seeling Constantin" },
+  { nummer: "817", name: "Buske Martin" },
+  { nummer: "818", name: "Hafermalz Mike" },
+  { nummer: "819", name: "Kowald Jörg" },
+  { nummer: "820", name: "Marciani Gino" },
+  { nummer: "823", name: "Klaus Sergiej" },
+  { nummer: "824", name: "Cuttone Allessandro" },
+  { nummer: "825", name: "Busse Domenik" },
+  { nummer: "835", name: "Arend Dimitriy" }
+];
+
+// Extra gespeicherte Mitarbeiter aus der Verwaltung laden
+const gespeicherteZusatzMitarbeiter = JSON.parse(localStorage.getItem('zusatzMitarbeiterListe')) || [];
+
+// Kombinierte finale Liste
+const mitarbeiterListe = [...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...gespeicherteZusatzMitarbeiter];
+
+
+
+const artikel = [
+  { name: "Sweatshirt Blau", nummer: "" },
+  { name: "T-Shirt blau Art. Nr. 35JN001", nummer: "35JN001" },
+  { name: "Bundhosen blau Art. 330100", nummer: "330100" },
+  { name: "Latzhosen blau     Art. 330130", nummer: "330130" },
+  { name: "Jacken blau", nummer: "" },
+  { name: "Winterjacke grün", nummer: "" },
+  { name: "Winterjacke f. Schlosser Art. Nr. 323195", nummer: "323195" },
+  { name: "Blousonjacke", nummer: "" },
+  { name: "ohne Petri-Aufnäher", nummer: "" },
+  { name: "Planam Fahrer Blousonjacke BW 290 mit Petri Aufnäher Art. ´0106054", nummer: "" },
+  { name: "Winterjacke Fahrer Blouson Planam  wasserdicht Art. 2591048", nummer: "2591048" },
+  { name: "Regenjacke dunkelblau", nummer: "" },
+  { name: "Regenhose dunkelblau", nummer: "" },
+  { name: "Latzhose grün", nummer: "" },
+  { name: "Jacke orange", nummer: "" },
+  { name: "alte Fahrer Bundhosen", nummer: "" },
+  { name: "alte Fahrer Latzhosen", nummer: "" },
+  { name: "alte Fahrer Blouson", nummer: "" },
+  { name: "Kittel blau", nummer: "" },
+  { name: "Kittel grün", nummer: "" },
+  { name: "Kittel grau", nummer: "" },
+  { name: "Fahrer Bundh.", nummer: "" },
+  { name: "Fahrer Latzh.", nummer: "" },
+  { name: "Planan Latzh.", nummer: "" },
+  { name: "Fahrer Warnschutz Pilotenjacke              EL 86101R Yellow mit Petri Emblem/Rücken reflexsilber", nummer: "" },
+  { name: "Schneehose Planam dunkelblau", nummer: "" },
+  { name: "bl. Fleecejacke f. Fahrer etc. Nr. 339170", nummer: "339170" },
+  { name: "Poloshirt schw.", nummer: "" },
+  { name: "Sweatshirt schw.", nummer: "" },
+  { name: "Hose schw. Kurz", nummer: "" },
+  { name: "Hose schw. Lang", nummer: "" },
+  { name: "Fleecejacke schw.", nummer: "" },
+  { name: "Regenjacke schw. V. Elka", nummer: "" },
+  { name: "Winterjacke schw.", nummer: "" },
+  { name: "Unisex-Hosen weiß    Art.Nr. X-L12-6950", nummer: "X-L12-6950" },
+  { name: "HAKRO Polo-Shirt weiß Art. Nr. 10008684 Best. Arbeitsschutzexpress", nummer: "10008684" },
+  { name: "Sweatshirt weiß", nummer: "" },
+  { name: "Kittel  KURZ  weiß", nummer: "" },
+  { name: "Kittel LANG  weiß", nummer: "" },
+  { name: "DA-Hosen weiß", nummer: "" },
+  { name: "HE-Hosen weiß", nummer: "" },
+  { name: "Taillenbänder Art. 15-99501 Kordel", nummer: "15-99501" },
+  { name: "Kühlhausjacke marineblau von Hele PLANAM Art. 341100", nummer: "341100" },
+  { name: "Kühlhausjacke blau von Hele PLANAM Art. 341100  --FREMDFIRMA\" auf Ärmel", nummer: "341100" },
+  { name: "Kühlhausjacke blau von TEMPEX", nummer: "" },
+  { name: "Kühlhausjacke weiß von TEMPEX", nummer: "" },
+  { name: "Securesse Steppjacke weiß Art. 4711100 m. Kragen Art. 4711020 ohne Kragen", nummer: "4711100" },
+  { name: "Securesse Steppweste weiß Art. 4711010", nummer: "4711010" },
+  { name: "Securesse Stepphose Art. 4711030", nummer: "4711030" },
+  { name: "Unterwäsche Hose", nummer: "" },
+  { name: "Unterwäsche Shirt", nummer: "" },
+  { name: "Stiefel WEIß  Art. Nr. 365A181331", nummer: "365A181331" },
+  { name: "Stiefel weiß NEU blaue Sohle", nummer: "" },
+  { name: "Stiefel GRÜN", nummer: "" },
+  { name: "Schuhe Puma normal Art. Nr. 359640642", nummer: "359640642" },
+  { name: "Schuhe Puma hoch Art. Nr. 359630182", nummer: "359630182" },
+  { name: "Securesse  Art. Nr.  234053", nummer: "234053" },
+  { name: "Schuhe", nummer: "" },
+  { name: "Reste ABEBA", nummer: "" },
+  { name: "ABEBA Hoch", nummer: "" },
+  { name: "Securesse hoch", nummer: "" },
+  { name: "Clogs", nummer: "" },
+  { name: "Schuhe dunkelblau f. Fahrer, Lager, Schlosser, Hausmeister Art. Nr. 336060 Exena Monza", nummer: "336060" },
+  { name: "Sixten Schuhe f. Schlosser halbhoch", nummer: "" },
+  { name: "Schuhe dunkel f. Fahrer, Lager, Schlosser, Hausmeister Art. Nr.", nummer: "Nr" },
+  { name: "Rest Schuhe dunkel", nummer: "" },
+  { name: "Ersatzfußbetten für Clogs", nummer: "" },
+  { name: "Uvex Schuh", nummer: "" },
+  { name: "Uvex Schuh", nummer: "" },
+  { name: "Sixton CREMA", nummer: "" },
+  { name: "Sixton Schnürstiefel", nummer: "" },
+  { name: "atlas Schuh", nummer: "" },
+  { name: "Sixton", nummer: "" },
+  { name: "Sixton Moivtauk Art. Nr. 3068115411 f. Hausm.", nummer: "3068115411" },
+  { name: "Uvex 2 Xenova Sicherheitsstiefel Weite 11 Art. 35895562", nummer: "35895562" },
+  { name: "Sixton Schnürstiefel schw./blau Art. 3065302313", nummer: "3065302313" },
+  { name: "Haix Sicherheitsschuh Blacksilver Art. 362630004", nummer: "362630004" },
+  { name: "Mütze", nummer: "" },
+  { name: "Cappy Art. 35CB15C", nummer: "35CB15C" },
+  { name: "Einziehsocken              Art. Nr. 2103010", nummer: "2103010" },
+  { name: "Buff Neckwarmer Art. NR. 483119403", nummer: "483119403" }
+];
+
+artikel.sort((a, b) => a.name.localeCompare(b.name));
+
+    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "38", "39", "40", "41", "42", "43", "44", "45", "46"];
+    let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+
+   
+
+    function initSignatureCanvas(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext("2d");
+      let drawing = false;
+
+      function resizeCanvas() {
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        ctx.scale(ratio, ratio);
+      }
+
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      function getPos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        if (evt.touches && evt.touches.length > 0) {
+          return { x: evt.touches[0].clientX - rect.left, y: evt.touches[0].clientY - rect.top };
+        } else {
+          return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+        }
+      }
+
+      canvas.addEventListener("mousedown", e => {
+        drawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+      });
+
+      canvas.addEventListener("mousemove", e => {
+        if (!drawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+      });
+
+      canvas.addEventListener("mouseup", () => drawing = false);
+      canvas.addEventListener("mouseout", () => drawing = false);
+
+      canvas.addEventListener("touchstart", e => {
+        drawing = true;
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+      });
+
+      canvas.addEventListener("touchmove", e => {
+        e.preventDefault();
+        if (!drawing) return;
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+      });
+
+      canvas.addEventListener("touchend", () => drawing = false);
+      canvas.addEventListener("touchcancel", () => drawing = false);
+    }
+
+    initSignatureCanvas("sigMitarbeiter");
+    initSignatureCanvas("sigAusgabe");
+
+function sucheNachID() {
+  const id = document.getElementById("idInput").value.trim().toUpperCase();
+  const kategorie = document.getElementById("kategorieSelect").value;
+  let quelle = [];
+
+  if (kategorie === "frauen") {
+    quelle = frauenMitarbeiterListe;
+  } else if (kategorie === "maenner") {
+    quelle = maennerMitarbeiterListe;
+  } else if (kategorie === "zeitarbeiter") {
+    quelle = maennerMitarbeiterListe; // oder eigene Zeitarbeiter-Liste
+  }
+
+  const eintrag = quelle.find(m => m.nummer.toUpperCase() === id);
+  document.getElementById("mitarbeiterInput").value = eintrag ? `${eintrag.name} (${eintrag.nummer})` : "";
+}
+
+
+
+  function addArtikel() {
+  const container = document.getElementById("artikelContainer");
+  const div = document.createElement("div");
+  const artikelId = "artikel_" + Date.now();
+
+  div.className = "artikel";
+
+  div.innerHTML = `
+    <label>Artikel:</label>
+    <input list="artikelListe" class="artikelSuchfeld" data-artikelfeld="${artikelId}">
+    <datalist id="artikelListe">
+      ${artikel.map(a => `<option value="${a.name}">`).join('')}
+    </datalist>
+    <label>Größe:</label>
+    <select>${groessen.map(g => `<option>${g}</option>`).join('')}</select>
+    <label>Anzahl:</label>
+    <input type="number" min="1" value="1">
+    <label>Artikelnr.:</label>
+    <input type="text" id="${artikelId}" readonly>
+  `;
+
+  container.appendChild(div);
+
+  // Event-Handler für automatische Nummernaktualisierung
+  const input = div.querySelector(".artikelSuchfeld");
+  input.addEventListener("input", function () {
+    updateArtikelnummerInput(this);
+  });
+}
+
+
+    function updateArtikelnummer(selectElement) {
+      const artikelName = selectElement.value;
+      const artikelObj = artikel.find(a => a.name === artikelName);
+      const feldId = selectElement.dataset.artikelfeld;
+      const nummernfeld = document.getElementById(feldId);
+      nummernfeld.value = artikelObj?.nummer || "";
+    }
+
+function updateArtikelnummerInput(inputElement) {
+  const artikelName = inputElement.value;
+  const artikelObj = artikel.find(a => a.name === artikelName);
+  const feldId = inputElement.dataset.artikelfeld;
+  const nummernfeld = document.getElementById(feldId);
+  nummernfeld.value = artikelObj?.nummer || "";
+}
+
+    function clearCanvas(id) {
+      const canvas = document.getElementById(id);
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+  function abschliessen() {
+  const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
+  const datum = document.getElementById("datum").value;
+  const bemerkung = document.getElementById("bemerkung").value;
+  const abteilung = document.getElementById("abteilung").value;
+  const kategorie = document.getElementById("kategorieSelect").value;
+
+  const ausgabeDetails = [];
+
+  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+    const artikelInput = div.querySelector(".artikelSuchfeld");
+    const groesse = div.querySelector("select:nth-of-type(1)").value;
+    const inputAnzahl = div.querySelector("input[type='number']");
+    const artikelName = artikelInput.value;
+    const anzahl = parseInt(inputAnzahl.value) || 0;
+
+  if (!bestand[artikelName]) bestand[artikelName] = {};
+if (bestand[artikelName][groesse] === undefined) bestand[artikelName][groesse] = 0;
+
+bestand[artikelName][groesse] = Math.max(bestand[artikelName][groesse] - anzahl, 0);
+
+
+    history.push({
+      datum: datum || new Date().toISOString().split('T')[0],
+      mitarbeiter: mitarbeiterName,
+      artikel: artikelName,
+      groesse: groesse,
+      anzahl: anzahl
+    });
+
+    ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+  });
+
+  localStorage.setItem('bestand', JSON.stringify(bestand));
+  localStorage.setItem('history', JSON.stringify(history));
+  updateBestandTabelle();
+  updateDashboard();
+
+  generatePDF(mitarbeiterName, datum, ausgabeDetails, bemerkung, abteilung, kategorie);
+
+  document.getElementById("artikelContainer").innerHTML = "";
+  document.getElementById("bemerkung").value = "";
+  clearCanvas('sigMitarbeiter');
+  clearCanvas('sigAusgabe');
+
+  alert("Ausgabe abgeschlossen, Bestand aktualisiert und PDF gespeichert.");
+  location.reload();
+}
+
+
+
+
+
+async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, kategorie) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(14);
+  doc.text("Wäscheausgabe Beleg", 10, 20);
+  doc.text(`Mitarbeiter: ${mitarbeiter}`, 10, 30);
+  doc.text(`Kategorie: ${kategorie}`, 10, 40);
+  doc.text(`Abteilung: ${abteilung}`, 10, 50);
+  doc.text(`Datum: ${datum}`, 10, 60);
+  doc.text("Artikel:", 10, 70);
+
+  details.forEach((line, index) => {
+    doc.text(line, 10, 80 + index * 10);
+  });
+
+  doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
+
+  const canvasM = document.getElementById("sigMitarbeiter");
+  const imgM = canvasM.toDataURL("image/png");
+  doc.text("Unterschrift Mitarbeiter:", 10, 100 + details.length * 10);
+  doc.addImage(imgM, "PNG", 10, 110 + details.length * 10, 80, 30);
+
+  const canvasA = document.getElementById("sigAusgabe");
+  const imgA = canvasA.toDataURL("image/png");
+  doc.text("Unterschrift Ausgabe:", 10, 145 + details.length * 10);
+  doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
+
+  doc.save(`Ausgabe_${mitarbeiter}_${datum}.pdf`);
+}
+
+
+async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abteilung, kategorie) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(14);
+  doc.text("Wäsche-Rückgabe Beleg", 10, 20);
+  doc.text(`Mitarbeiter: ${mitarbeiter}`, 10, 30);
+  doc.text(`Kategorie: ${kategorie}`, 10, 40);
+  doc.text(`Abteilung: ${abteilung}`, 10, 50);
+  doc.text(`Datum: ${datum}`, 10, 60);
+  doc.text("Artikel:", 10, 70);
+
+  details.forEach((line, index) => {
+    doc.text(line, 10, 80 + index * 10);
+  });
+
+  doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
+
+  const canvasM = document.getElementById("sigMitarbeiter");
+  const imgM = canvasM.toDataURL("image/png");
+  doc.text("Unterschrift Mitarbeiter:", 10, 100 + details.length * 10);
+  doc.addImage(imgM, "PNG", 10, 110 + details.length * 10, 80, 30);
+
+  const canvasA = document.getElementById("sigAusgabe");
+  const imgA = canvasA.toDataURL("image/png");
+  doc.text("Unterschrift Rücknahme:", 10, 145 + details.length * 10);
+  doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
+
+  doc.save(`Rueckgabe_${mitarbeiter}_${datum}.pdf`);
+}
+
+
+function rueckgabeAbschliessen() {
+  const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
+  const datum = document.getElementById("datum").value;
+  const bemerkung = document.getElementById("bemerkung").value;
+  const abteilung = document.getElementById("abteilung").value;
+  const kategorie = document.getElementById("kategorieSelect").value;
+
+  const rueckgabeDetails = [];
+
+  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+    const artikelInput = div.querySelector(".artikelSuchfeld");
+    const groesse = div.querySelector("select:nth-of-type(1)").value; // Bei dir ist das erste Select für Größe
+    const inputAnzahl = div.querySelector("input[type='number']");
+    const artikelName = artikelInput.value;
+    const anzahl = parseInt(inputAnzahl.value) || 0;
+
+    if (!bestand[artikelName]) bestand[artikelName] = {};
+    if (bestand[artikelName][groesse] === undefined) bestand[artikelName][groesse] = 0;
+
+    bestand[artikelName][groesse] += anzahl;
+
+    history.push({
+      datum: datum || new Date().toISOString().split('T')[0],
+      mitarbeiter: mitarbeiterName,
+      artikel: artikelName,
+      groesse: groesse,
+      anzahl: anzahl,
+      rueckgabe: true
+    });
+
+    rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+  });
+
+  localStorage.setItem('bestand', JSON.stringify(bestand));
+  localStorage.setItem('history', JSON.stringify(history));
+  updateBestandTabelle();
+  updateDashboard();
+
+  generateRueckgabePDF(mitarbeiterName, datum, rueckgabeDetails, bemerkung, abteilung, kategorie);
+
+  document.getElementById("artikelContainer").innerHTML = "";
+  document.getElementById("bemerkung").value = "";
+  clearCanvas('sigMitarbeiter');
+  clearCanvas('sigAusgabe');
+
+  alert("Rückgabe abgeschlossen, Bestand aktualisiert und PDF gespeichert.");
+  location.reload();
+}
+
+
+
+
+
+    function saveBestand() {
+      document.querySelectorAll('.bestand-input').forEach(input => {
+        const artikelName = input.dataset.artikel;
+        const groesse = input.dataset.groesse;
+        const wert = parseInt(input.value) || 0;
+
+        if (!bestand[artikelName]) bestand[artikelName] = {};
+        bestand[artikelName][groesse] = wert;
+      });
+      localStorage.setItem('bestand', JSON.stringify(bestand));
+      updateBestandTabelle();
+      alert("Bestand gespeichert.");
+    }
+
+    function updateBestandTabelle() {
+      const tbody = document.querySelector("#bestandTabelle tbody");
+      tbody.innerHTML = "";
+      Object.keys(bestand).forEach(name => {
+        Object.keys(bestand[name]).forEach(groesse => {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${name}</td><td>${groesse}</td><td>${bestand[name][groesse]}</td>`;
+          tbody.appendChild(row);
+        });
+      });
+    }
+
+    function renderBestandEingabe() {
+      const container = document.getElementById("bestandEingabeContainer");
+      container.innerHTML = "";
+      artikel.forEach(a => {
+        groessen.forEach(g => {
+          const div = document.createElement("div");
+          const wert = (bestand[a.name] && bestand[a.name][g]) ? bestand[a.name][g] : 0;
+          div.innerHTML = `<label>${a.name} (${g}):</label><input type="number" class="bestand-input" data-artikel="${a.name}" data-groesse="${g}" value="${wert}">`;
+          container.appendChild(div);
+        });
+      });
+    }
+
+    // 👉 Nur EINMAL definieren — die Version mit 30 Tage und Buttons
+
+let zeigeAlle = false;
+
+function updateDashboard() {
+  const tbody = document.querySelector("#dashboardTabelle tbody");
+  tbody.innerHTML = "";
+
+  const nameFilter = document.getElementById("dashboardSearch").value.toLowerCase();
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+
+  let filteredHistory = [...history];
+  if (!zeigeAlle) {
+    const heute = new Date();
+    const vor30Tagen = new Date();
+    vor30Tagen.setDate(heute.getDate() - 30);
+
+    filteredHistory = filteredHistory.filter(entry => {
+      const entryDate = new Date(entry.datum);
+      return entryDate >= vor30Tagen && entryDate <= heute;
+    });
+  }
+
+  filteredHistory.forEach(entry => {
+    const mitarbeiter = entry.mitarbeiter.toLowerCase();
+    if (nameFilter && !mitarbeiter.includes(nameFilter)) return;
+    if (startDate && entry.datum < startDate) return;
+    if (endDate && entry.datum > endDate) return;
+
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${entry.datum}</td><td>${entry.mitarbeiter}</td><td>${entry.artikel}</td><td>${entry.groesse}</td><td>${entry.anzahl}</td>`;
+    tbody.appendChild(row);
+  });
+}
+
+// Buttons hinzufügen
+const dashboardContainer = document.querySelector(".dashboard-container");
+const btnAlle = document.createElement("button");
+btnAlle.textContent = "Alle anzeigen";
+btnAlle.onclick = () => {
+  zeigeAlle = true;
+  updateDashboard();
+};
+
+const btn30 = document.createElement("button");
+btn30.textContent = "Letzte 30 Tage anzeigen";
+btn30.onclick = () => {
+  zeigeAlle = false;
+  updateDashboard();
+};
+
+dashboardContainer.insertBefore(btnAlle, dashboardContainer.children[dashboardContainer.children.length - 1]);
+dashboardContainer.insertBefore(btn30, dashboardContainer.children[dashboardContainer.children.length - 1]);
+
+
+    function filterDashboard() {
+      const nameFilter = document.getElementById("dashboardSearch").value.toLowerCase();
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+
+      const rows = document.querySelectorAll("#dashboardTabelle tbody tr");
+      rows.forEach(row => {
+        const mitarbeiter = row.children[1].innerText.toLowerCase();
+        const datum = row.children[0].innerText;
+
+        let show = mitarbeiter.includes(nameFilter);
+
+        if (startDate) {
+          show = show && (datum >= startDate);
+        }
+        if (endDate) {
+          show = show && (datum <= endDate);
+        }
+
+        row.style.display = show ? "" : "none";
+      });
+    }
+
+function kategorieWechsel() {
+  const kategorie = document.getElementById("kategorieSelect").value;
+  const liste = document.getElementById("mitarbeiterListe");
+  liste.innerHTML = "";
+
+  let quelle = [];
+
+  if (kategorie === "frauen") {
+    quelle = frauenMitarbeiterListe;
+  } else if (kategorie === "maenner") {
+    quelle = maennerMitarbeiterListe;
+  } else if (kategorie === "zeitarbeiter") {
+    // Hier könntest du optional eine eigene Zeitarbeiterliste anlegen
+    quelle = maennerMitarbeiterListe; // Beispiel: Zeitarbeiter sind Männer
+  }
+
+  quelle.forEach(m => {
+    const option = document.createElement("option");
+    option.value = `${m.name} (${m.nummer})`;
+    liste.appendChild(option);
+  });
+}
+
+
+function toggleBestandAnzeige() {
+  const container = document.querySelector(".bestand-container");
+  const btn = document.getElementById("toggleBestandBtn");
+  if (container.style.display === "none" || container.style.display === "") {
+    container.style.display = "block";
+    btn.textContent = "Bestand ausblenden";
+  } else {
+    container.style.display = "none";
+    btn.textContent = "Bestand anzeigen";
+  }
+}
+function toggleDashboardAnzeige() {
+  const container = document.querySelector(".dashboard-container");
+  const btn = document.getElementById("toggleDashboardBtn");
+  if (container.style.display === "none" || container.style.display === "") {
+    container.style.display = "block";
+    btn.textContent = "Dashboard ausblenden";
+  } else {
+    container.style.display = "none";
+    btn.textContent = "Dashboard anzeigen";
+  }
+}
+
+function toggleFreieSpindnummern() {
+  const container = document.getElementById("freieSpindnummernContainer");
+  const btn = document.getElementById("toggleSpindBtn");
+  
+  if (container.style.display === "none" || container.style.display === "") {
+    // Anzeigen
+    zeigeFreieSpindnummern(); // Liste erzeugen
+    container.style.display = "block";
+    btn.textContent = "Freie Spindnummern ausblenden";
+  } else {
+    // Ausblenden
+    container.style.display = "none";
+    btn.textContent = "Freie Spindnummern anzeigen";
+  }
+}
+
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  kategorieWechsel();          // Kategorie-Dropdown initial befüllen
+  renderBestandEingabe();     // Bestandseingabefelder erzeugen
+  updateBestandTabelle();     // Tabelle mit aktuellem Bestand füllen
+  updateDashboard();          // Dashboard-Einträge aktualisieren
+
+  // 👉 Bestand-Bereich initial ausblenden
+  document.querySelector(".bestand-container").style.display = "none";
+  
+  // 👉 Dashboard-Bereich initial ausblenden
+  document.querySelector(".dashboard-container").style.display = "none";
+});
+
+// Mitarbeiterarray aus localStorage laden oder leeres Array
+
+
+// Mitarbeiterverwaltung anzeigen/ausblenden
+function toggleMitarbeiterVerwaltung() {
+  const container = document.querySelector(".mitarbeiter-container");
+  const btn = document.getElementById("toggleMitarbeiterBtn");
+  if (container.style.display === "none" || container.style.display === "") {
+    container.style.display = "block";
+    btn.textContent = "Mitarbeiterverwaltung ausblenden";
+    renderMitarbeiterTabelle();
+  } else {
+    container.style.display = "none";
+    btn.textContent = "Mitarbeiterverwaltung anzeigen";
+  }
+}
+
+// Mitarbeiter hinzufügen
+function addMitarbeiter() {
+  const name = document.getElementById("neuerName").value.trim();
+  const spind = document.getElementById("neuerSpind").value.trim();
+
+  if (!name || !spind) {
+    alert("Bitte Name und Spindnummer eingeben!");
+    return;
+  }
+
+  mitarbeiterListe.push({ name, nummer: spind });
+  localStorage.setItem('mitarbeiterListe', JSON.stringify(mitarbeiterListe));
+
+  document.getElementById("neuerName").value = "";
+  document.getElementById("neuerSpind").value = "";
+
+  renderMitarbeiterTabelle();
+  updateMitarbeiterDatalist();
+}
+
+// Mitarbeiter löschen
+function deleteMitarbeiter(index) {
+  if (confirm("Mitarbeiter wirklich löschen?")) {
+    mitarbeiterListe.splice(index, 1);
+    localStorage.setItem('mitarbeiterListe', JSON.stringify(mitarbeiterListe));
+    renderMitarbeiterTabelle();
+    updateMitarbeiterDatalist();
+  }
+}
+function zeigeFreieSpindnummern() {
+  const kategorie = document.getElementById("kategorieSelect").value;
+  const container = document.getElementById("freieSpindnummernContainer");
+  let freieListe = [];
+
+  const frauenFreie = [
+    "5", "18", "45", "101", "102", "105", "106", "107", "109", "110",
+    "112", "113", "114", "115", "116", "117", "118", "119", "120", "121",
+    "122", "123", "124", "125", "126", "127", "128", "129", "130", "140",
+    "161", "162", "163", "164", "165", "166", "167", "168", "169", "170",
+    "171", "172", "173"
+  ];
+
+  const maennerFreie = [
+    "07", "019", "032", "039", "052", "069", "092", "096", "0116", "0132",
+    "0144", "0146", "0187", "0189", "0193", "0194", "0201", "0202", "0203",
+    "0204", "0206", "0207", "0211", "0222", "0223", "0224", "0225", "0227",
+    "0228", "0229", "0230", "0234", "0236", "0237", "0238", "0239", "0240",
+    "0241", "0243", "0244", "0245", "0246", "0247", "0248", "0249", "0250",
+    "0251", "0252", "0253", "0254", "0255", "0256", "0257", "0258", "0259",
+    "0260", "858", "859", "860"
+  ];
+
+  if (kategorie === "maenner" || kategorie === "zeitarbeiter") {
+    freieListe = maennerFreie;
+  } else if (kategorie === "frauen") {
+    freieListe = frauenFreie;
+  }
+
+  container.innerHTML = freieListe.join("<br>");
+}
+
+
+
+
+
+
+// Tabelle aktualisieren
+function renderMitarbeiterTabelle() {
+  const tbody = document.querySelector("#mitarbeiterTabelle tbody");
+  tbody.innerHTML = "";
+  mitarbeiterListe.forEach((m, index) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${m.name}</td>
+      <td>${m.nummer}</td>
+      <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function filterMitarbeiterTabelle() {
+  const filter = document.getElementById("mitarbeiterSearch").value.toLowerCase();
+  const rows = document.querySelectorAll("#mitarbeiterTabelle tbody tr");
+  
+  rows.forEach(row => {
+    const name = row.children[0].innerText.toLowerCase();
+    const spind = row.children[1].innerText.toLowerCase();
+    const match = name.includes(filter) || spind.includes(filter);
+    row.style.display = match ? "" : "none";
+  });
+}
+
+
+// Datalist aktualisieren
+function updateMitarbeiterDatalist() {
+  const datalist = document.getElementById("mitarbeiterListe");
+  datalist.innerHTML = "";
+  mitarbeiterListe.forEach(m => {
+    const option = document.createElement("option");
+    option.value = `${m.name} (${m.nummer})`;
+    datalist.appendChild(option);
+  });
+}
+
+// Initial aufrufen
+updateMitarbeiterDatalist();
+
+
+  </script>
+</body>
+</html>
+
