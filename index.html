@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
+    <!-- ✅ MSAL Bibliothek einfügen -->
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
   <style>
   body { font-family: sans-serif; padding: 20px; }
   input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
@@ -737,6 +739,39 @@ function updateArtikelnummerInput(inputElement) {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+const clientId = "eb47dcba-4ea2-4a3a-9af1-20a017d605e9";
+const tenantId = "f54f53bb-d0ff-4b78-bcf4-4aeeeb924428";
+const redirectUri = "https://thiemann423.github.io/Waesche-App/"; // Deine exakte GitHub Pages URL hier!
+const scopes = ["Files.ReadWrite.All"];
+
+const msalConfig = {
+  auth: {
+    clientId: clientId,
+    authority: `https://login.microsoftonline.com/${tenantId}`,
+    redirectUri: redirectUri,
+  }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
+  try {
+    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+    const accessToken = loginResponse.accessToken;
+
+    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
+    await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Authorization": `Bearer ${accessToken}` },
+      body: fileBlob
+    });
+
+    alert("Upload erfolgreich!");
+  } catch (error) {
+    console.error(error);
+    alert("Fehler beim Upload");
+  }
+}
 
   function abschliessen() {
   const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
@@ -821,8 +856,15 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   doc.text("Unterschrift Ausgabe:", 10, 145 + details.length * 10);
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
-  doc.save(`Ausgabe_${mitarbeiter}_${datum}.pdf`);
+  // ✅ Datei lokal speichern
+ const dateiname = `Ausgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
+doc.save(dateiname);
+const pdfBlob = doc.output("blob");
+await loginAndUploadPDF(pdfBlob, dateiname);
+
 }
+
+
 
 
 
@@ -856,8 +898,14 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   doc.text("Unterschrift Rücknahme:", 10, 145 + details.length * 10);
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
-  doc.save(`Rueckgabe_${mitarbeiter}_${datum}.pdf`);
+  // ✅ Datei lokal speichern
+const dateiname = `Rueckgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
+doc.save(dateiname);
+const pdfBlob = doc.output("blob");
+await loginAndUploadPDF(pdfBlob, dateiname);
+
 }
+
 
 
 
@@ -1188,18 +1236,21 @@ function toggleFreieSpindnummern() {
 
 window.addEventListener("DOMContentLoaded", () => {
   kategorieWechsel();
-  
   updateBestandTabelle();
   updateDashboard();
   renderMitarbeiterTabelle();
-  updateArtikelListe(); // ✅ HIER hinzugefügt
-document.querySelector(".bestand-container").style.display = "none";
-document.getElementById("toggleBestandBtn").textContent = "Bestand anzeigen";
+  updateArtikelListe();
 
-document.querySelector(".dashboard-container").style.display = "none";
-document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
+  document.querySelector(".bestand-container").style.display = "none";
+  document.getElementById("toggleBestandBtn").textContent = "Bestand anzeigen";
 
+  document.querySelector(".dashboard-container").style.display = "none";
+  document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
+
+  // 🟠 Automatisch laden
+  loadDataFromOneDrive();
 });
+
 
 
 
@@ -1377,6 +1428,85 @@ function filterMitarbeiterTabelle() {
   });
 }
 
+async function loadDataFromOneDrive() {
+  try {
+    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+    const accessToken = loginResponse.accessToken;
+
+    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Authorization": `Bearer ${accessToken}` },
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+      const data = JSON.parse(text);
+
+      // Bestand & History & Mitarbeiterliste aktualisieren
+      bestand = data.bestand || {};
+      history = data.history || [];
+      const neueZusatz = data.mitarbeiterListe || [];
+      mitarbeiterListe.length = 0;
+      mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
+
+      localStorage.setItem('bestand', JSON.stringify(bestand));
+      localStorage.setItem('history', JSON.stringify(history));
+      localStorage.setItem('mitarbeiterListe', JSON.stringify(neueZusatz));
+
+      updateBestandTabelle();
+      updateDashboard();
+      renderMitarbeiterTabelle();
+      updateMitarbeiterDatalist();
+      kategorieWechsel();
+
+      alert("Daten erfolgreich von OneDrive geladen!");
+    } else {
+      alert("Konnte Bestand nicht laden (Datei evtl. noch nicht vorhanden?)");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Fehler beim Laden aus OneDrive");
+  }
+}
+async function saveDataToOneDrive() {
+  try {
+    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+    const accessToken = loginResponse.accessToken;
+
+    const neueZusatz = mitarbeiterListe.filter(m => 
+      !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
+      !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
+    );
+
+    const data = {
+      bestand: bestand,
+      history: history,
+      mitarbeiterListe: neueZusatz
+    };
+
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+
+    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: { "Authorization": `Bearer ${accessToken}` },
+      body: blob
+    });
+
+    if (response.ok) {
+      alert("Daten erfolgreich in OneDrive gespeichert!");
+    } else {
+      alert("Fehler beim Speichern in OneDrive");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Fehler beim Speichern in OneDrive");
+  }
+}
 
 // Datalist aktualisieren
 function updateMitarbeiterDatalist() {
@@ -1403,6 +1533,10 @@ updateMitarbeiterDatalist();
 
 <h2>Speicher zurücksetzen</h2>
 <button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
+
+<h2>Speichern & Laden (OneDrive)</h2>
+<button onclick="saveDataToOneDrive()">In OneDrive speichern</button>
+<button onclick="loadDataFromOneDrive()">Aus OneDrive laden</button>
 
 <script>
 function clearLocalStorage() {
