@@ -5,31 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
-    .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
-    canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
-    button { padding: 10px 20px; margin-top: 10px; }
-    .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    h2 { margin-top: 40px; }
-  </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
-  <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
+  body { font-family: sans-serif; padding: 20px; }
+  input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
+  .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
+  canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
+  button { padding: 10px 20px; margin-top: 10px; }
+  .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  h2 { margin-top: 40px; }
 
+  /* --- Tabelle Bestand schöner und kompakter --- */
+  #bestandTabelle input[type="text"],
+  #bestandTabelle input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  #bestandTabelle td {
+    vertical-align: middle;
+  }
+
+  #bestandTabelle button {
+    display: block;
+    margin: 4px auto;
+    width: 90%;
+  }
+
+  #bestandTabelle td:nth-child(1) {
+    width: 200px;       /* 👈 Hier die Breite der Artikel-Spalte kleiner gesetzt */
+    max-width: 200px;
+    word-break: break-word;
+  }
+
+  #bestandTabelle td:nth-child(2),
+  #bestandTabelle td:nth-child(3) {
+    width: 80px;
+    text-align: center;
+  }
+
+  #bestandTabelle td:nth-child(4) {
+    width: 100px;
+  }
+
+  #bestandTabelle input.name-input {
+    font-size: 0.9em;
+  }
+</style>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
+
 <body>
   <h1>Wäscheauftrag</h1>
-<button onclick="signIn()">Mit Microsoft anmelden</button>
+
+  <!-- Datalist global -->
+  <datalist id="artikelListeGlobal">
+    <!-- Optionen werden später per JavaScript befüllt -->
+  </datalist>
 
   <select id="kategorieSelect" onchange="kategorieWechsel()">
-  <option value="frauen" selected>Mitarbeiterin</option>
-  <option value="maenner">Mitarbeiter</option>
-  <option value="zeitarbeiter">Zeitarbeiter</option>
-</select>
-
+    <option value="frauen" selected>Mitarbeiterin</option>
+    <option value="maenner">Mitarbeiter</option>
+    <option value="zeitarbeiter">Zeitarbeiter</option>
+    <option value="produktion">Produktion</option>
+  </select>
 
   <label>Mitarbeiter suchen:</label>
   <input list="mitarbeiterListe" id="mitarbeiterInput">
@@ -61,19 +102,18 @@
   <button onclick="abschliessen()">Ausgabe abschließen & PDF speichern</button>
   <button onclick="rueckgabeAbschliessen()">Rückgabe abschließen & PDF speichern</button>
 
- <h2>Bestand verwalten</h2>
-<button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
-<div class="bestand-container">
-  <div id="bestandEingabeContainer"></div>
-  <button onclick="saveBestand()">Bestand speichern</button>
-  <h3>Aktueller Bestand</h3>
-  <table id="bestandTabelle">
-    <thead>
-      <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+  <h2>Bestand verwalten</h2>
+  <button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
+  <div class="bestand-container">
+    <h3>Aktueller Bestand</h3>
+    <table id="bestandTabelle">
+      <thead>
+        <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
 
 
 
@@ -103,14 +143,23 @@
 <h2>Mitarbeiter verwalten</h2>
 <button onclick="toggleMitarbeiterVerwaltung()" id="toggleMitarbeiterBtn">Mitarbeiterverwaltung anzeigen</button>
 <div class="mitarbeiter-container" style="display: none;">
-  <h3>Neuen Mitarbeiter hinzufügen</h3>
-  <label>Name:</label>
-  <input type="text" id="neuerName">
+ <h3>Neuen Mitarbeiter hinzufügen</h3>
+<label>Name:</label>
+<input type="text" id="neuerName">
 
-  <label>Spindnummer:</label>
-  <input type="text" id="neuerSpind">
+<label>Spindnummer:</label>
+<input type="text" id="neuerSpind">
 
-  <button onclick="addMitarbeiter()">Speichern</button>
+<label>Kategorie:</label>
+<select id="neueKategorie" onchange="zeigeFreieSpindnummern()">
+  <option value="frauen">Frau</option>
+  <option value="maenner">Mann</option>
+  <option value="zeitarbeiter">Zeitarbeiter</option>
+</select>
+
+
+<button onclick="addMitarbeiter()">Speichern</button>
+
 
  <h3>Freie Spindnummern</h3>
 <div id="freieSpindnummernContainer" style="display: none; column-count: 5; column-gap: 20px;"></div>
@@ -122,10 +171,16 @@
 <input type="text" id="mitarbeiterSearch" placeholder="Name oder Spindnummer eingeben..." oninput="filterMitarbeiterTabelle()">
 <table id="mitarbeiterTabelle">
   <thead>
-    <tr><th>Name</th><th>Spind</th><th>Aktionen</th></tr>
+    <tr>
+      <th>Name</th>
+      <th>Spind</th>
+      <th>Kategorie</th>
+      <th>Aktionen</th>
+    </tr>
   </thead>
   <tbody></tbody>
 </table>
+
 
 
 
@@ -437,12 +492,15 @@ const frauenMitarbeiterListe = [
   { nummer: "825", name: "Busse Domenik" },
   { nummer: "835", name: "Arend Dimitriy" }
 ];
+// Kategorie hinzufügen
+frauenMitarbeiterListe.forEach(m => m.kategorie = "frauen");
+maennerMitarbeiterListe.forEach(m => m.kategorie = "maenner");
 
-// Extra gespeicherte Mitarbeiter aus der Verwaltung laden
-const gespeicherteZusatzMitarbeiter = JSON.parse(localStorage.getItem('zusatzMitarbeiterListe')) || [];
-
-// Kombinierte finale Liste
+// Vom Storage laden (nur eigene hinzugefügte)
+const gespeicherteZusatzMitarbeiter = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
 const mitarbeiterListe = [...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...gespeicherteZusatzMitarbeiter];
+
+
 
 
 
@@ -543,24 +601,37 @@ artikel.sort((a, b) => a.name.localeCompare(b.name));
       const ctx = canvas.getContext("2d");
       let drawing = false;
 
-      function resizeCanvas() {
-        const ratio = window.devicePixelRatio || 1;
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        ctx.scale(ratio, ratio);
-      }
+ function resizeCanvas() {
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * ratio;
+  canvas.height = canvas.offsetHeight * ratio;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+}
+
+
 
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
-      function getPos(evt) {
-        const rect = canvas.getBoundingClientRect();
-        if (evt.touches && evt.touches.length > 0) {
-          return { x: evt.touches[0].clientX - rect.left, y: evt.touches[0].clientY - rect.top };
-        } else {
-          return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
-        }
-      }
+    function getPos(evt) {
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+
+  if (evt.touches && evt.touches.length > 0) {
+    return {
+      x: (evt.touches[0].clientX - rect.left) * ratio,
+      y: (evt.touches[0].clientY - rect.top) * ratio
+    };
+  } else {
+    return {
+      x: (evt.clientX - rect.left) * ratio,
+      y: (evt.clientY - rect.top) * ratio
+    };
+  }
+}
+
 
       canvas.addEventListener("mousedown", e => {
         drawing = true;
@@ -604,19 +675,14 @@ artikel.sort((a, b) => a.name.localeCompare(b.name));
 function sucheNachID() {
   const id = document.getElementById("idInput").value.trim().toUpperCase();
   const kategorie = document.getElementById("kategorieSelect").value;
-  let quelle = [];
 
-  if (kategorie === "frauen") {
-    quelle = frauenMitarbeiterListe;
-  } else if (kategorie === "maenner") {
-    quelle = maennerMitarbeiterListe;
-  } else if (kategorie === "zeitarbeiter") {
-    quelle = maennerMitarbeiterListe; // oder eigene Zeitarbeiter-Liste
-  }
+  // In der kombinierten Liste filtern (mitarbeiterListe enthält alle, auch neue!)
+  const quelle = mitarbeiterListe.filter(m => m.kategorie === kategorie);
 
   const eintrag = quelle.find(m => m.nummer.toUpperCase() === id);
   document.getElementById("mitarbeiterInput").value = eintrag ? `${eintrag.name} (${eintrag.nummer})` : "";
 }
+
 
 
 
@@ -627,19 +693,18 @@ function sucheNachID() {
 
   div.className = "artikel";
 
-  div.innerHTML = `
-    <label>Artikel:</label>
-    <input list="artikelListe" class="artikelSuchfeld" data-artikelfeld="${artikelId}">
-    <datalist id="artikelListe">
-      ${artikel.map(a => `<option value="${a.name}">`).join('')}
-    </datalist>
-    <label>Größe:</label>
-    <select>${groessen.map(g => `<option>${g}</option>`).join('')}</select>
-    <label>Anzahl:</label>
-    <input type="number" min="1" value="1">
-    <label>Artikelnr.:</label>
-    <input type="text" id="${artikelId}" readonly>
-  `;
+div.innerHTML = `
+  <label>Artikel:</label>
+  <input list="artikelListeGlobal" class="artikelSuchfeld" data-artikelfeld="${artikelId}">
+  <label>Größe:</label>
+  <select>${groessen.map(g => `<option>${g}</option>`).join('')}</select>
+  <label>Anzahl:</label>
+  <input type="number" min="1" value="1">
+  <label>Artikelnr.:</label>
+  <input type="text" id="${artikelId}" readonly>
+`;
+
+
 
   container.appendChild(div);
 
@@ -730,9 +795,11 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
+  const empfaenger = (kategorie === "produktion") ? "Abteilung: " + abteilung : mitarbeiter;
+
   doc.setFontSize(14);
   doc.text("Wäscheausgabe Beleg", 10, 20);
-  doc.text(`Mitarbeiter: ${mitarbeiter}`, 10, 30);
+  doc.text(`Empfänger: ${empfaenger}`, 10, 30);
   doc.text(`Kategorie: ${kategorie}`, 10, 40);
   doc.text(`Abteilung: ${abteilung}`, 10, 50);
   doc.text(`Datum: ${datum}`, 10, 60);
@@ -758,13 +825,16 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
 }
 
 
+
 async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abteilung, kategorie) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
+  const empfaenger = (kategorie === "produktion") ? "Abteilung: " + abteilung : mitarbeiter;
+
   doc.setFontSize(14);
   doc.text("Wäsche-Rückgabe Beleg", 10, 20);
-  doc.text(`Mitarbeiter: ${mitarbeiter}`, 10, 30);
+  doc.text(`Empfänger: ${empfaenger}`, 10, 30);
   doc.text(`Kategorie: ${kategorie}`, 10, 40);
   doc.text(`Abteilung: ${abteilung}`, 10, 50);
   doc.text(`Datum: ${datum}`, 10, 60);
@@ -788,6 +858,7 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
 
   doc.save(`Rueckgabe_${mitarbeiter}_${datum}.pdf`);
 }
+
 
 
 function rueckgabeAbschliessen() {
@@ -857,30 +928,92 @@ function rueckgabeAbschliessen() {
       alert("Bestand gespeichert.");
     }
 
-    function updateBestandTabelle() {
-      const tbody = document.querySelector("#bestandTabelle tbody");
-      tbody.innerHTML = "";
-      Object.keys(bestand).forEach(name => {
-        Object.keys(bestand[name]).forEach(groesse => {
-          const row = document.createElement("tr");
-          row.innerHTML = `<td>${name}</td><td>${groesse}</td><td>${bestand[name][groesse]}</td>`;
-          tbody.appendChild(row);
-        });
-      });
-    }
+function updateBestandTabelle() {
+  const tbody = document.querySelector("#bestandTabelle tbody");
+  tbody.innerHTML = "";
 
-    function renderBestandEingabe() {
-      const container = document.getElementById("bestandEingabeContainer");
-      container.innerHTML = "";
-      artikel.forEach(a => {
-        groessen.forEach(g => {
-          const div = document.createElement("div");
-          const wert = (bestand[a.name] && bestand[a.name][g]) ? bestand[a.name][g] : 0;
-          div.innerHTML = `<label>${a.name} (${g}):</label><input type="number" class="bestand-input" data-artikel="${a.name}" data-groesse="${g}" value="${wert}">`;
-          container.appendChild(div);
-        });
-      });
+  Object.keys(bestand).forEach(name => {
+    Object.keys(bestand[name]).forEach(groesse => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td><input type="text" value="${name}" data-original-name="${name}" data-groesse="${groesse}" class="name-input"></td>
+        <td>${groesse}</td>
+        <td><input type="number" value="${bestand[name][groesse]}" class="bestand-input"></td>
+        <td>
+          <button onclick="saveArtikel(this)">Speichern</button>
+          <button onclick="deleteArtikel('${name}')">Löschen</button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+    });
+  });
+}
+
+function updateArtikelListe() {
+  const artikelOhneDuplikate = artikel.filter((a, index, self) =>
+    a.name && a.name.trim() && index === self.findIndex(b => b.name === a.name)
+  );
+
+  const dl = document.querySelector("#artikelListeGlobal");
+  dl.innerHTML = artikelOhneDuplikate.map(a => `<option value="${a.name}">`).join('');
+}
+
+
+
+
+
+
+function saveArtikel(button) {
+  const row = button.closest("tr");
+  const nameInput = row.querySelector(".name-input");
+  const bestandInput = row.querySelector(".bestand-input");
+
+  const originalName = nameInput.dataset.originalName;
+  const groesse = nameInput.dataset.groesse;
+  const newName = nameInput.value.trim();
+  const newBestand = parseInt(bestandInput.value) || 0;
+
+  if (!newName) {
+    alert("Artikelname darf nicht leer sein!");
+    return;
+  }
+
+  if (newName !== originalName) {
+    if (!bestand[newName]) bestand[newName] = {};
+    bestand[newName][groesse] = newBestand;
+
+    delete bestand[originalName][groesse];
+
+    if (Object.keys(bestand[originalName]).length === 0) {
+      delete bestand[originalName];
     }
+  } else {
+    bestand[newName][groesse] = newBestand;
+  }
+
+  localStorage.setItem('bestand', JSON.stringify(bestand));
+  updateBestandTabelle();
+  updateArtikelListe();
+  alert("Artikel gespeichert.");
+}
+
+
+function deleteArtikel(name) {
+  if (confirm(`Artikel "${name}" wirklich löschen?`)) {
+    delete bestand[name];
+    localStorage.setItem('bestand', JSON.stringify(bestand));
+    updateBestandTabelle();
+    updateArtikelListe();
+    alert("Artikel gelöscht.");
+  }
+}
+
+
+
+
+ 
 
     // 👉 Nur EINMAL definieren — die Version mit 30 Tage und Buttons
 
@@ -963,26 +1096,53 @@ dashboardContainer.insertBefore(btn30, dashboardContainer.children[dashboardCont
 
 function kategorieWechsel() {
   const kategorie = document.getElementById("kategorieSelect").value;
-  const liste = document.getElementById("mitarbeiterListe");
-  liste.innerHTML = "";
+  const mitarbeiterInput = document.getElementById("mitarbeiterInput");
+  const mitarbeiterDatalist = document.getElementById("mitarbeiterListe");
+  const idInput = document.getElementById("idInput");
 
-  let quelle = [];
+  // Felder leeren
+  mitarbeiterInput.value = "";
+  idInput.value = "";
 
-  if (kategorie === "frauen") {
-    quelle = frauenMitarbeiterListe;
-  } else if (kategorie === "maenner") {
-    quelle = maennerMitarbeiterListe;
-  } else if (kategorie === "zeitarbeiter") {
-    // Hier könntest du optional eine eigene Zeitarbeiterliste anlegen
-    quelle = maennerMitarbeiterListe; // Beispiel: Zeitarbeiter sind Männer
+  if (kategorie === "produktion") {
+    // Mitarbeiterfeld deaktivieren
+    mitarbeiterInput.disabled = true;
+    mitarbeiterDatalist.innerHTML = "";
+    idInput.disabled = true;
+  } else {
+    // Mitarbeiterfeld aktivieren
+    mitarbeiterInput.disabled = false;
+    idInput.disabled = false;
+
+    let quelle = [];
+    if (kategorie === "frauen") {
+      quelle = [...frauenMitarbeiterListe];
+    } else if (kategorie === "maenner") {
+      quelle = [...maennerMitarbeiterListe];
+    } else if (kategorie === "zeitarbeiter") {
+      quelle = [];
+    }
+
+    // Zusatzmitarbeiter dieser Kategorie
+    const zusatz = mitarbeiterListe.filter(m => 
+      m.kategorie === kategorie && 
+      !frauenMitarbeiterListe.includes(m) && 
+      !maennerMitarbeiterListe.includes(m)
+    );
+
+    quelle = [...quelle, ...zusatz];
+
+    mitarbeiterDatalist.innerHTML = "";
+    quelle.forEach(m => {
+      const option = document.createElement("option");
+      option.value = `${m.name} (${m.nummer})`;
+      mitarbeiterDatalist.appendChild(option);
+    });
   }
-
-  quelle.forEach(m => {
-    const option = document.createElement("option");
-    option.value = `${m.name} (${m.nummer})`;
-    liste.appendChild(option);
-  });
 }
+
+
+
 
 
 function toggleBestandAnzeige() {
@@ -1027,17 +1187,21 @@ function toggleFreieSpindnummern() {
 
 
 window.addEventListener("DOMContentLoaded", () => {
-  kategorieWechsel();          // Kategorie-Dropdown initial befüllen
-  renderBestandEingabe();     // Bestandseingabefelder erzeugen
-  updateBestandTabelle();     // Tabelle mit aktuellem Bestand füllen
-  updateDashboard();          // Dashboard-Einträge aktualisieren
-
-  // 👉 Bestand-Bereich initial ausblenden
-  document.querySelector(".bestand-container").style.display = "none";
+  kategorieWechsel();
   
-  // 👉 Dashboard-Bereich initial ausblenden
-  document.querySelector(".dashboard-container").style.display = "none";
+  updateBestandTabelle();
+  updateDashboard();
+  renderMitarbeiterTabelle();
+  updateArtikelListe(); // ✅ HIER hinzugefügt
+document.querySelector(".bestand-container").style.display = "none";
+document.getElementById("toggleBestandBtn").textContent = "Bestand anzeigen";
+
+document.querySelector(".dashboard-container").style.display = "none";
+document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
+
 });
+
+
 
 // Mitarbeiterarray aus localStorage laden oder leeres Array
 
@@ -1049,47 +1213,96 @@ function toggleMitarbeiterVerwaltung() {
   if (container.style.display === "none" || container.style.display === "") {
     container.style.display = "block";
     btn.textContent = "Mitarbeiterverwaltung ausblenden";
-    renderMitarbeiterTabelle();
   } else {
     container.style.display = "none";
     btn.textContent = "Mitarbeiterverwaltung anzeigen";
   }
 }
 
-// Mitarbeiter hinzufügen
+
+
 function addMitarbeiter() {
+  // 📝 Werte aus den Eingabefeldern holen
   const name = document.getElementById("neuerName").value.trim();
   const spind = document.getElementById("neuerSpind").value.trim();
+  const kategorie = document.getElementById("neueKategorie").value;
 
+  // 🔎 Prüfung: Sind Felder leer?
   if (!name || !spind) {
     alert("Bitte Name und Spindnummer eingeben!");
     return;
   }
 
-  mitarbeiterListe.push({ name, nummer: spind });
-  localStorage.setItem('mitarbeiterListe', JSON.stringify(mitarbeiterListe));
+  // 🔎 Prüfung: Gibt es diesen Mitarbeiter schon (Name & Spindnummer)?
+  if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
+    alert("Dieser Mitarbeiter existiert bereits!");
+    return;
+  }
 
+  // ✅ Mitarbeiter hinzufügen
+  mitarbeiterListe.push({ name, nummer: spind, kategorie });
+
+  // 💾 Nur Zusatzmitarbeiter speichern (nicht die festen Listen)
+  localStorage.setItem('mitarbeiterListe', JSON.stringify(
+    mitarbeiterListe.filter(m => 
+      !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
+      !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
+    )
+  ));
+
+  // 🧹 Felder zurücksetzen
   document.getElementById("neuerName").value = "";
   document.getElementById("neuerSpind").value = "";
+  document.getElementById("neueKategorie").value = "frauen";
+
+  // 🔄 Listen & Tabellen aktualisieren
+  const neueZusatz = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
+  mitarbeiterListe.length = 0;
+  mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
 
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
+  kategorieWechsel();
+  zeigeFreieSpindnummern(); // ← optional: gleich Spindnummern aktualisieren
+
+  alert("Mitarbeiter erfolgreich hinzugefügt!");
 }
+
+
+
+
+
+
+ 
 
 // Mitarbeiter löschen
 function deleteMitarbeiter(index) {
   if (confirm("Mitarbeiter wirklich löschen?")) {
     mitarbeiterListe.splice(index, 1);
-    localStorage.setItem('mitarbeiterListe', JSON.stringify(mitarbeiterListe));
+    localStorage.setItem('mitarbeiterListe', JSON.stringify(
+      mitarbeiterListe.filter(m => 
+        !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
+        !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
+      )
+    ));
+
+    // Nach dem Löschen neu laden
+    const neueZusatz = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
+    mitarbeiterListe.length = 0;
+    mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
+
     renderMitarbeiterTabelle();
     updateMitarbeiterDatalist();
+    kategorieWechsel();
+    zeigeFreieSpindnummern(); // <-- HIER hinzufügen
   }
 }
-function zeigeFreieSpindnummern() {
-  const kategorie = document.getElementById("kategorieSelect").value;
-  const container = document.getElementById("freieSpindnummernContainer");
-  let freieListe = [];
 
+function zeigeFreieSpindnummern() {
+  const kategorie = document.getElementById("neueKategorie").value;
+  const container = document.getElementById("freieSpindnummernContainer");
+
+  // Statische Listen
   const frauenFreie = [
     "5", "18", "45", "101", "102", "105", "106", "107", "109", "110",
     "112", "113", "114", "115", "116", "117", "118", "119", "120", "121",
@@ -1108,14 +1321,27 @@ function zeigeFreieSpindnummern() {
     "0260", "858", "859", "860"
   ];
 
-  if (kategorie === "maenner" || kategorie === "zeitarbeiter") {
-    freieListe = maennerFreie;
-  } else if (kategorie === "frauen") {
-    freieListe = frauenFreie;
-  }
-
-  container.innerHTML = freieListe.join("<br>");
+  let alleFreien = [];
+if (kategorie === "frauen") {
+  alleFreien = frauenFreie;
+} else if (kategorie === "maenner") {
+  alleFreien = maennerFreie;
+} else if (kategorie === "zeitarbeiter") {
+  alleFreien = []; // Leere Liste für Zeitarbeiter
 }
+
+
+  // Spindnummern aus aktueller Liste entfernen
+  const belegte = mitarbeiterListe
+    .filter(m => m.kategorie === kategorie)
+    .map(m => m.nummer);
+
+  const wirklichFrei = alleFreien.filter(num => !belegte.includes(num));
+
+  container.innerHTML = wirklichFrei.join("<br>");
+}
+
+
 
 
 
@@ -1128,11 +1354,13 @@ function renderMitarbeiterTabelle() {
   tbody.innerHTML = "";
   mitarbeiterListe.forEach((m, index) => {
     const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${m.name}</td>
-      <td>${m.nummer}</td>
-      <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
-    `;
+   row.innerHTML = `
+  <td>${m.name}</td>
+  <td>${m.nummer}</td>
+  <td>${m.kategorie || '-'}</td>
+  <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
+`;
+
     tbody.appendChild(row);
   });
 }
@@ -1159,40 +1387,31 @@ function updateMitarbeiterDatalist() {
     option.value = `${m.name} (${m.nummer})`;
     datalist.appendChild(option);
   });
+
+  // Aktuelle Liste sofort aktualisieren
+  kategorieWechsel();
 }
+
 
 // Initial aufrufen
 updateMitarbeiterDatalist();
 
-// 👉 Azure Login konfigurieren
-const msalConfig = {
-    auth: {
-        clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
-        authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
-        redirectUri: "https://thiemann423.github.io/Waesche-App/"
-    }
-};
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-function signIn() {
-    const loginRequest = {
-        scopes: ["User.Read", "Files.ReadWrite.All"]
-    };
-
-    msalInstance.loginPopup(loginRequest)
-    .then(response => {
-        console.log("✅ Login erfolgreich", response);
-        alert("Login erfolgreich! Willkommen " + response.account.username);
-        // 👉 Hier kannst du später weitere Logik einbauen (z.B. Datei-Upload nach OneDrive)
-    })
-    .catch(error => {
-        console.error("❌ Login fehlgeschlagen", error);
-        alert("Login fehlgeschlagen: " + error);
-    });
-}
 
   </script>
+
+<h2>Speicher zurücksetzen</h2>
+<button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
+
+<script>
+function clearLocalStorage() {
+  if (confirm("Alle gespeicherten Daten (Bestand, Mitarbeiter usw.) wirklich löschen?")) {
+    localStorage.clear();
+    location.reload();
+  }
+}
+</script>
+
 </body>
 </html>
-
