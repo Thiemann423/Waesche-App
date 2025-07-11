@@ -977,24 +977,33 @@ function updateBestandTabelle() {
   const tbody = document.querySelector("#bestandTabelle tbody");
   tbody.innerHTML = "";
 
-  Object.keys(bestand).forEach(name => {
-    Object.keys(bestand[name]).forEach(groesse => {
+  artikel.forEach((a, index) => {
+    // Wenn kein Bestand vorhanden, initialisieren
+    if (!bestand[a.name]) bestand[a.name] = {};
+    if (!bestand[a.name]["M"]) bestand[a.name]["M"] = 0; // Default-Größe "M"
+
+    const groesseKeys = Object.keys(bestand[a.name]);
+
+    groesseKeys.forEach(groesse => {
       const row = document.createElement("tr");
 
       row.innerHTML = `
-        <td><input type="text" value="${name}" data-original-name="${name}" data-groesse="${groesse}" class="name-input"></td>
-        <td>${groesse}</td>
-        <td><input type="number" value="${bestand[name][groesse]}" class="bestand-input"></td>
+        <td><input type="text" value="${a.name}" data-index="${index}" class="name-input"></td>
+        <td><input type="text" value="${groesse}" class="groesse-input"></td>
+        <td><input type="number" value="${bestand[a.name][groesse]}" class="bestand-input"></td>
         <td>
           <button onclick="saveArtikel(this)">Speichern</button>
-          <button onclick="deleteArtikel('${name}')">Löschen</button>
+          <button onclick="deleteArtikel('${a.name}', '${groesse}')">Löschen</button>
         </td>
       `;
 
       tbody.appendChild(row);
     });
   });
+
+  localStorage.setItem('bestand', JSON.stringify(bestand));
 }
+
 
 function updateArtikelListe() {
   const artikelOhneDuplikate = artikel.filter((a, index, self) =>
@@ -1013,47 +1022,52 @@ function updateArtikelListe() {
 function saveArtikel(button) {
   const row = button.closest("tr");
   const nameInput = row.querySelector(".name-input");
+  const groesseInput = row.querySelector(".groesse-input");
   const bestandInput = row.querySelector(".bestand-input");
 
-  const originalName = nameInput.dataset.originalName;
-  const groesse = nameInput.dataset.groesse;
+  const oldName = nameInput.dataset.originalName || nameInput.defaultValue;
+  const oldGroesse = groesseInput.defaultValue;
+
   const newName = nameInput.value.trim();
+  const newGroesse = groesseInput.value.trim();
   const newBestand = parseInt(bestandInput.value) || 0;
 
-  if (!newName) {
-    alert("Artikelname darf nicht leer sein!");
+  if (!newName || !newGroesse) {
+    alert("Name und Größe dürfen nicht leer sein!");
     return;
   }
 
-  if (newName !== originalName) {
+  // Artikel umbenennen
+  if (oldName !== newName || oldGroesse !== newGroesse) {
     if (!bestand[newName]) bestand[newName] = {};
-    bestand[newName][groesse] = newBestand;
+    bestand[newName][newGroesse] = newBestand;
 
-    delete bestand[originalName][groesse];
-
-    if (Object.keys(bestand[originalName]).length === 0) {
-      delete bestand[originalName];
+    // Alten Eintrag entfernen
+    delete bestand[oldName][oldGroesse];
+    if (Object.keys(bestand[oldName]).length === 0) {
+      delete bestand[oldName];
     }
   } else {
-    bestand[newName][groesse] = newBestand;
+    bestand[newName][newGroesse] = newBestand;
   }
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
   updateBestandTabelle();
-  updateArtikelListe();
-  alert("Artikel gespeichert.");
 }
 
+function deleteArtikel(name, groesse) {
+  if (confirm(`Artikel "${name}" in Größe "${groesse}" wirklich löschen?`)) {
+    delete bestand[name][groesse];
 
-function deleteArtikel(name) {
-  if (confirm(`Artikel "${name}" wirklich löschen?`)) {
-    delete bestand[name];
+    if (Object.keys(bestand[name]).length === 0) {
+      delete bestand[name];
+    }
+
     localStorage.setItem('bestand', JSON.stringify(bestand));
     updateBestandTabelle();
-    updateArtikelListe();
-    alert("Artikel gelöscht.");
   }
 }
+
 
 
 
