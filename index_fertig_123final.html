@@ -750,6 +750,12 @@ const msalConfig = {
 };
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
+    
+function signInAndAcquireToken(force) {
+  msalInstance.loginPopup({ scopes: scopes })
+    .then(() => alert("Anmeldung erfolgreich!"))
+    .catch(e => console.error(e));
+}
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
@@ -1271,8 +1277,9 @@ function toggleFreieSpindnummern() {
 
 
 
-window.addEventListener("DOMContentLoaded", async () => {
-  await loadDataFromOneDrive();
+window.addEventListener("DOMContentLoaded", () => {
+  // await loadDataFromOneDrive();  ←  ❌ diese Zeile deaktivieren
+
   kategorieWechsel();
   updateBestandTabelle();
   updateDashboard();
@@ -1285,6 +1292,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelector(".dashboard-container").style.display = "none";
   document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
 });
+
 
 
 
@@ -1627,6 +1635,15 @@ setInterval(() => {
   }
 }, 120000); // 2 Minuten
 </script>
+<!-- ✅ Login-Hinweis-Block -->
+<div id="loginNotice" style="display: none; position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); background: #fffbe6; border: 1px solid #e6c200; padding: 1rem 2rem; border-radius: 8px; font-weight: bold; z-index: 10000; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+  ⚠️ Um OneDrive nutzen zu können, bitte anmelden.<br/>
+  <button onclick="signInAndAcquireToken(true)" style="margin-top: 10px; background-color: #0078d4; color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer;">🔐 Jetzt anmelden</button>
+</div>
+
+
+
+
 
 
 
