@@ -760,23 +760,25 @@ function signInAndAcquireToken(force) {
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
     // Erst Login, Benutzer auswählt
-    await msalInstance.loginPopup({ scopes: scopes });
+   let accessToken;
+const accounts = msalInstance.getAllAccounts();
 
-    let accessToken;
-    try {
-      // Zuerst silent versuchen
-      const tokenResponse = await msalInstance.acquireTokenSilent({
-        scopes: scopes,
-        account: msalInstance.getAllAccounts()[0]
-      });
-      accessToken = tokenResponse.accessToken;
-    } catch (e) {
-      // Falls Silent fehlschlägt: Popup
-      const tokenResponse = await msalInstance.acquireTokenPopup({
-        scopes: scopes
-      });
-      accessToken = tokenResponse.accessToken;
-    }
+if (accounts.length > 0) {
+  try {
+    const tokenResponse = await msalInstance.acquireTokenSilent({
+      scopes: scopes,
+      account: accounts[0]
+    });
+    accessToken = tokenResponse.accessToken;
+  } catch (e) {
+    const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
+    accessToken = tokenResponse.accessToken;
+  }
+} else {
+  const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
+  accessToken = tokenResponse.accessToken;
+}
+
 
     // Upload
     const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
@@ -843,7 +845,7 @@ bestand[artikelName][groesse] = Math.max(bestand[artikelName][groesse] - anzahl,
 
 // ⬇️ Automatisch in OneDrive speichern
 saveDataToOneDrive();
-location.reload();
+
 
 }
 
@@ -882,10 +884,13 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
   // ✅ Datei lokal speichern
- const dateiname = `Ausgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
-doc.save(dateiname);
+const dateiname = `Ausgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
 const pdfBlob = doc.output("blob");
 await loginAndUploadPDF(pdfBlob, dateiname);
+
+// Optional lokal speichern, falls gewünscht:
+// doc.save(dateiname);
+
 
 }
 
@@ -925,9 +930,12 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
 
   // ✅ Datei lokal speichern
 const dateiname = `Rueckgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
-doc.save(dateiname);
 const pdfBlob = doc.output("blob");
 await loginAndUploadPDF(pdfBlob, dateiname);
+
+// Optional lokal speichern, falls gewünscht:
+// doc.save(dateiname);
+
 
 }
 
@@ -983,7 +991,7 @@ function rueckgabeAbschliessen() {
 
 // ⬇️ Automatisch speichern
 saveDataToOneDrive();
-location.reload();
+
 
 }
 
