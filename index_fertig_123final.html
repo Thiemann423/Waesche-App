@@ -753,9 +753,26 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
-    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
-    const accessToken = loginResponse.accessToken;
+    // Erst Login, Benutzer auswählt
+    await msalInstance.loginPopup({ scopes: scopes });
 
+    let accessToken;
+    try {
+      // Zuerst silent versuchen
+      const tokenResponse = await msalInstance.acquireTokenSilent({
+        scopes: scopes,
+        account: msalInstance.getAllAccounts()[0]
+      });
+      accessToken = tokenResponse.accessToken;
+    } catch (e) {
+      // Falls Silent fehlschlägt: Popup
+      const tokenResponse = await msalInstance.acquireTokenPopup({
+        scopes: scopes
+      });
+      accessToken = tokenResponse.accessToken;
+    }
+
+    // Upload
     const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
     await fetch(uploadUrl, {
       method: "PUT",
@@ -769,6 +786,7 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
     alert("Fehler beim Upload");
   }
 }
+
 
   function abschliessen() {
   const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
