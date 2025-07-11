@@ -978,9 +978,8 @@ function updateBestandTabelle() {
   tbody.innerHTML = "";
 
   artikel.forEach((a, index) => {
-    // Wenn kein Bestand vorhanden, initialisieren
-    if (!bestand[a.name]) bestand[a.name] = {};
-    if (!bestand[a.name]["M"]) bestand[a.name]["M"] = 0; // Default-Größe "M"
+    // Wenn kein Bestand vorhanden → initialisieren mit Größe "M" = 0
+    if (!bestand[a.name]) bestand[a.name] = { "M": 0 };
 
     const groesseKeys = Object.keys(bestand[a.name]);
 
@@ -1003,6 +1002,7 @@ function updateBestandTabelle() {
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
 }
+
 
 
 function updateArtikelListe() {
