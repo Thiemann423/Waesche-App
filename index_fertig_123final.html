@@ -816,7 +816,11 @@ bestand[artikelName][groesse] = Math.max(bestand[artikelName][groesse] - anzahl,
   clearCanvas('sigAusgabe');
 
   alert("Ausgabe abgeschlossen, Bestand aktualisiert und PDF gespeichert.");
-  location.reload();
+
+// ⬇️ Automatisch in OneDrive speichern
+saveDataToOneDrive();
+location.reload();
+
 }
 
 
@@ -952,7 +956,11 @@ function rueckgabeAbschliessen() {
   clearCanvas('sigAusgabe');
 
   alert("Rückgabe abgeschlossen, Bestand aktualisiert und PDF gespeichert.");
-  location.reload();
+
+// ⬇️ Automatisch speichern
+saveDataToOneDrive();
+location.reload();
+
 }
 
 
@@ -1245,7 +1253,8 @@ function toggleFreieSpindnummern() {
 
 
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+  await loadDataFromOneDrive();
   kategorieWechsel();
   updateBestandTabelle();
   updateDashboard();
@@ -1257,10 +1266,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.querySelector(".dashboard-container").style.display = "none";
   document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
-
-  // 🟠 Automatisch laden
-  loadDataFromOneDrive();
 });
+
 
 
 
@@ -1557,6 +1564,53 @@ function clearLocalStorage() {
   }
 }
 </script>
+
+<script>
+let bearbeitungAktiv = false;
+
+// Markieren, wenn Benutzer gerade Artikel bearbeitet
+function setBearbeitungAktiv(status) {
+  bearbeitungAktiv = status;
+}
+
+function startBearbeitung() {
+  setBearbeitungAktiv(true);
+}
+function endeBearbeitung() {
+  setBearbeitungAktiv(false);
+}
+
+const originalAbschliessen = abschliessen;
+abschliessen = function() {
+  startBearbeitung();
+  originalAbschliessen();
+  endeBearbeitung();
+  setTimeout(() => {
+    loadDataFromOneDrive();
+  }, 500);
+};
+
+const originalRueckgabeAbschliessen = rueckgabeAbschliessen;
+rueckgabeAbschliessen = function() {
+  startBearbeitung();
+  originalRueckgabeAbschliessen();
+  endeBearbeitung();
+  setTimeout(() => {
+    loadDataFromOneDrive();
+  }, 500);
+};
+
+setInterval(() => {
+  if (!bearbeitungAktiv) {
+    loadDataFromOneDrive();
+    console.log("Automatisch aktualisiert aus OneDrive.");
+  } else {
+    console.log("Bearbeitung aktiv – keine automatische Aktualisierung.");
+  }
+}, 120000); // 2 Minuten
+</script>
+
+
 
 
 </body>
