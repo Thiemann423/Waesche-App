@@ -106,6 +106,7 @@
   <button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
   <div class="bestand-container">
     <h3>Aktueller Bestand</h3>
+    <button onclick="neuenArtikelHinzufuegen()">+ Neuer Artikel</button>
     <table id="bestandTabelle">
       <thead>
         <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
@@ -1012,13 +1013,12 @@ saveDataToOneDrive();
       updateBestandTabelle();
       alert("Bestand gespeichert.");
     }
-
 function updateBestandTabelle() {
   const tbody = document.querySelector("#bestandTabelle tbody");
   tbody.innerHTML = "";
 
   artikel.forEach((a, index) => {
-    // Wenn kein Bestand vorhanden → initialisieren mit Größe "M" = 0
+    // Falls noch kein Bestand existiert
     if (!bestand[a.name]) bestand[a.name] = { "M": 0 };
 
     const groesseKeys = Object.keys(bestand[a.name]);
@@ -1045,6 +1045,7 @@ function updateBestandTabelle() {
 
 
 
+
 function updateArtikelListe() {
   const artikelOhneDuplikate = artikel.filter((a, index, self) =>
     a.name && a.name.trim() && index === self.findIndex(b => b.name === a.name)
@@ -1053,6 +1054,7 @@ function updateArtikelListe() {
   const dl = document.querySelector("#artikelListeGlobal");
   dl.innerHTML = artikelOhneDuplikate.map(a => `<option value="${a.name}">`).join('');
 }
+
 
 
 
@@ -1077,7 +1079,7 @@ function saveArtikel(button) {
     return;
   }
 
-  // Artikel umbenennen
+  // Artikel umbenennen oder neuen hinzufügen
   if (oldName !== newName || oldGroesse !== newGroesse) {
     if (!bestand[newName]) bestand[newName] = {};
     bestand[newName][newGroesse] = newBestand;
@@ -1091,9 +1093,17 @@ function saveArtikel(button) {
     bestand[newName][newGroesse] = newBestand;
   }
 
+  // ✅ Neu: Artikel auch ins globale Array hinzufügen, falls nicht vorhanden
+  if (!artikel.find(a => a.name === newName)) {
+    artikel.push({ name: newName, nummer: "" }); // Nummer leer lassen, falls keine bekannt
+  }
+
   localStorage.setItem('bestand', JSON.stringify(bestand));
   updateBestandTabelle();
+  updateArtikelListe(); // damit sofort in der Auswahl sichtbar
 }
+
+
 
 function deleteArtikel(name, groesse) {
   if (confirm(`Artikel "${name}" in Größe "${groesse}" wirklich löschen?`)) {
@@ -1108,6 +1118,22 @@ function deleteArtikel(name, groesse) {
   }
 }
 
+function neuenArtikelHinzufuegen() {
+  const tbody = document.querySelector("#bestandTabelle tbody");
+  const row = document.createElement("tr");
+
+  row.innerHTML = `
+    <td><input type="text" value="" placeholder="Artikelname" class="name-input"></td>
+    <td><input type="text" value="" placeholder="Größe" class="groesse-input"></td>
+    <td><input type="number" value="0" class="bestand-input"></td>
+    <td>
+      <button onclick="saveArtikel(this)">Speichern</button>
+      <button onclick="this.closest('tr').remove()">Entfernen</button>
+    </td>
+  `;
+
+  tbody.appendChild(row);
+}
 
 
 
@@ -1634,20 +1660,48 @@ rueckgabeAbschliessen = function() {
   }, 500);
 };
 
-setInterval(() => {
-  if (!bearbeitungAktiv) {
-    loadDataFromOneDrive();
-    console.log("Automatisch aktualisiert aus OneDrive.");
-  } else {
-    console.log("Bearbeitung aktiv – keine automatische Aktualisierung.");
-  }
-}, 120000); // 2 Minuten
+
 </script>
 <!-- ✅ Login-Hinweis-Block -->
 <div id="loginNotice" style="display: none; position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); background: #fffbe6; border: 1px solid #e6c200; padding: 1rem 2rem; border-radius: 8px; font-weight: bold; z-index: 10000; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
   ⚠️ Um OneDrive nutzen zu können, bitte anmelden.<br/>
   <button onclick="signInAndAcquireToken(true)" style="margin-top: 10px; background-color: #0078d4; color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer;">🔐 Jetzt anmelden</button>
 </div>
+<script>
+let letzteLadeZeit = Date.now();
+
+// Funktion, die dich nach 30 Minuten erinnert
+function erinnereAnLaden() {
+  const jetzt = Date.now();
+  const minutenSeitLaden = Math.floor((jetzt - letzteLadeZeit) / 60000);
+
+  if (minutenSeitLaden >= 30) { // ⬅️ Hier kannst du die Minuten ändern
+    if (confirm("⚠️ Du hast seit 30 Minuten nicht mehr aus OneDrive geladen. Jetzt laden?")) {
+      loadDataFromOneDrive();
+      letzteLadeZeit = Date.now();
+    }
+  }
+}
+
+// Nach jedem erfolgreichen Laden Zeit merken
+function merkeLadezeit() {
+  letzteLadeZeit = Date.now();
+}
+
+// Original-Funktion merken
+const originalLoad = loadDataFromOneDrive;
+
+// Funktion überschreiben, damit wir Zeit merken
+loadDataFromOneDrive = async function() {
+  await originalLoad();
+  merkeLadezeit();
+};
+
+// Prüfen alle 1 Minute (60000 ms)
+setInterval(erinnereAnLaden, 60000);
+
+console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinnerung.");
+</script>
 
 
 
