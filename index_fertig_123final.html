@@ -164,6 +164,12 @@
   <option value="maenner">Mann</option>
   <option value="zeitarbeiter">Zeitarbeiter</option>
 </select>
+<!-- ⭐ NEUE FELDER in "Mitarbeiter verwalten" hinzufügen -->
+<label>Eintrittsdatum:</label>
+<input type="date" id="eintrittsDatum">
+
+<label>Austrittsdatum:</label>
+<input type="date" id="austrittsDatum">
 
 
 <button onclick="addMitarbeiter()">Speichern</button>
@@ -191,6 +197,8 @@
   </thead>
   <tbody></tbody>
 </table>
+<!-- ⭐ Button für PDF unten bei der Mitarbeiter-Tabelle hinzufügen -->
+<button onclick="generateMitarbeiterPDF()">📄 PDF mit Mitarbeiterdaten erstellen</button>
 
 
 
@@ -1415,28 +1423,32 @@ function toggleMitarbeiterVerwaltung() {
 
 
 
+// ⭐ FUNKTION addMitarbeiter() vollständig ersetzen
 function addMitarbeiter() {
-  // 📝 Werte aus den Eingabefeldern holen
   const name = document.getElementById("neuerName").value.trim();
   const spind = document.getElementById("neuerSpind").value.trim();
   const kategorie = document.getElementById("neueKategorie").value;
+  const eintritt = document.getElementById("eintrittsDatum").value;
+  const austritt = document.getElementById("austrittsDatum").value;
 
-  // 🔎 Prüfung: Sind Felder leer?
   if (!name || !spind) {
     alert("Bitte Name und Spindnummer eingeben!");
     return;
   }
 
-  // 🔎 Prüfung: Gibt es diesen Mitarbeiter schon (Name & Spindnummer)?
   if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
     alert("Dieser Mitarbeiter existiert bereits!");
     return;
   }
 
-  // ✅ Mitarbeiter hinzufügen
-  mitarbeiterListe.push({ name, nummer: spind, kategorie });
+  mitarbeiterListe.push({ 
+    name, 
+    nummer: spind, 
+    kategorie, 
+    eintrittsDatum: eintritt, 
+    austrittsDatum: austritt 
+  });
 
-  // 💾 Nur Zusatzmitarbeiter speichern (nicht die festen Listen)
   localStorage.setItem('mitarbeiterListe', JSON.stringify(
     mitarbeiterListe.filter(m => 
       !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
@@ -1444,12 +1456,12 @@ function addMitarbeiter() {
     )
   ));
 
-  // 🧹 Felder zurücksetzen
   document.getElementById("neuerName").value = "";
   document.getElementById("neuerSpind").value = "";
   document.getElementById("neueKategorie").value = "frauen";
+  document.getElementById("eintrittsDatum").value = "";
+  document.getElementById("austrittsDatum").value = "";
 
-  // 🔄 Listen & Tabellen aktualisieren
   const neueZusatz = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
   mitarbeiterListe.length = 0;
   mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
@@ -1457,7 +1469,7 @@ function addMitarbeiter() {
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
   kategorieWechsel();
-  zeigeFreieSpindnummern(); // ← optional: gleich Spindnummern aktualisieren
+  zeigeFreieSpindnummern();
 
   alert("Mitarbeiter erfolgreich hinzugefügt!");
 }
@@ -1613,6 +1625,43 @@ async function loadDataFromOneDrive() {
     alert("Fehler beim Laden aus OneDrive");
   }
 }
+    // ⭐ GANZ UNTEN (bei deinen anderen Funktionen) hinzufügen
+async function generateMitarbeiterPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  doc.setFontSize(14);
+  doc.text("Mitarbeiter-Übersicht für externe Firma", 10, 15);
+  doc.setFontSize(10);
+
+  let y = 25;
+
+  mitarbeiterListe.forEach((m, i) => {
+    const eintritt = m.eintrittsDatum ? m.eintrittsDatum : "-";
+    const austritt = m.austrittsDatum ? m.austrittsDatum : "-";
+    const zeile = `${i + 1}. ${m.name}, Spind: ${m.nummer}, Eintritt: ${eintritt}, Austritt: ${austritt}, Kategorie: ${m.kategorie}`;
+    doc.text(zeile, 10, y);
+
+    y += 8;
+
+    if (y > 280) {
+      doc.addPage();
+      y = 15;
+    }
+  });
+
+  const dateiname = `Mitarbeiter_Uebersicht_${new Date().toISOString().split('T')[0]}.pdf`;
+  const pdfBlob = doc.output("blob");
+
+  // ✅ Hochladen in OneDrive (wie die anderen PDFs)
+  await loginAndUploadPDF(pdfBlob, dateiname);
+
+  // Falls lokal speichern gewünscht, alternativ: doc.save(dateiname);
+
+  alert("PDF wurde erstellt und hochgeladen!");
+}
+
+
 async function saveDataToOneDrive() {
   try {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
