@@ -161,11 +161,14 @@
 
 <button onclick="addMitarbeiter()">Speichern</button>
 
-
- <h3>Freie Spindnummern</h3>
+<h3>Freie Spindnummern</h3>
 <div id="freieSpindnummernContainer" style="display: none; column-count: 5; column-gap: 20px;"></div>
 <button id="toggleSpindBtn" onclick="toggleFreieSpindnummern()">Freie Spindnummern anzeigen</button>
 
+<h3>Speichern & Laden (OneDrive)</h3>
+<button onclick="saveDataToOneDrive()">In OneDrive speichern</button>
+<button onclick="loadDataFromOneDrive()">Aus OneDrive laden</button>
+<button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
 
 <h3>Aktuelle Mitarbeiter</h3>
 <label>Suche:</label>
@@ -1132,8 +1135,10 @@ function neuenArtikelHinzufuegen() {
     </td>
   `;
 
-  tbody.appendChild(row);
+  // Statt appendChild:
+  tbody.prepend(row);
 }
+
 
 
 
@@ -1608,13 +1613,6 @@ updateMitarbeiterDatalist();
 
 
   </script>
-
-<h2>Speichern & Laden (OneDrive)</h2>
-<button onclick="saveDataToOneDrive()">In OneDrive speichern</button>
-<button onclick="loadDataFromOneDrive()">Aus OneDrive laden</button>
-
-<h2>Speicher zurücksetzen</h2>
-<button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
 
 
 <script>
