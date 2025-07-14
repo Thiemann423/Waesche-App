@@ -105,9 +105,12 @@
   <h2>Bestand verwalten</h2>
   <button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
   <div class="bestand-container">
-    <h3>Aktueller Bestand</h3>
-    <button onclick="neuenArtikelHinzufuegen()">+ Neuer Artikel</button>
-    <table id="bestandTabelle">
+   <h3>Aktueller Bestand</h3>
+<div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+  <button onclick="neuenArtikelHinzufuegen()">+ Neuer Artikel</button>
+  <input type="text" id="bestandSearch" placeholder="🔎 Artikel suchen..." oninput="filterBestandTabelle()" style="flex: 1; min-width: 200px;">
+</div>
+<table id="bestandTabelle">
       <thead>
         <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
       </thead>
@@ -624,7 +627,9 @@ const artikel = [
 
 artikel.sort((a, b) => a.name.localeCompare(b.name));
 
-    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "38", "39", "40", "41", "42", "43", "44", "45", "46"];
+    const kleiderGroessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+    const schuhGroessen = ["38", "39", "40", "41", "42", "43", "44", "45", "46"];
+
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
 
@@ -1050,31 +1055,43 @@ function updateBestandTabelle() {
   const tbody = document.querySelector("#bestandTabelle tbody");
   tbody.innerHTML = "";
 
+  // Definiere hier die Größen
+  const kleiderGroessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+  const schuhGroessen = ["38", "39", "40", "41", "42", "43", "44", "45", "46"];
+
   artikel.forEach((a, index) => {
-    // Falls noch kein Bestand existiert
-    if (!bestand[a.name]) bestand[a.name] = { "M": 0 };
+    // Prüfen, ob Artikel ein Schuh ist (Name enthält "schuh", "schuhe" oder "stiefel")
+    const istSchuh = /schuh|schuhe|stiefel/i.test(a.name);
 
-    const groesseKeys = Object.keys(bestand[a.name]);
+    // Passende Größenliste auswählen
+    const groessenListe = istSchuh ? schuhGroessen : kleiderGroessen;
 
-    groesseKeys.forEach(groesse => {
+    // Falls noch kein Bestand vorhanden ist
+    if (!bestand[a.name]) bestand[a.name] = {};
+
+    groessenListe.forEach(groesse => {
+      // Falls noch kein Eintrag für diese Größe vorhanden ist → auf 0 setzen
+      if (bestand[a.name][groesse] === undefined) {
+        bestand[a.name][groesse] = 0;
+      }
+
       const row = document.createElement("tr");
-
       row.innerHTML = `
         <td><input type="text" value="${a.name}" data-index="${index}" class="name-input"></td>
         <td><input type="text" value="${groesse}" class="groesse-input"></td>
-        <td><input type="number" value="${bestand[a.name][groesse]}" class="bestand-input"></td>
+        <td><input type="number" value="${bestand[a.name][groesse]}" class="bestand-input" data-artikel="${a.name}" data-groesse="${groesse}"></td>
         <td>
           <button onclick="saveArtikel(this)">Speichern</button>
           <button onclick="deleteArtikel('${a.name}', '${groesse}')">Löschen</button>
         </td>
       `;
-
       tbody.appendChild(row);
     });
   });
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
 }
+
 
 
 
@@ -1165,12 +1182,21 @@ function neuenArtikelHinzufuegen() {
     </td>
   `;
 
-  // Zeile oben einfügen
   tbody.prepend(row);
-
-  // ➕ Direkt das erste Feld (Name) fokussieren
   row.querySelector(".name-input").focus();
 }
+
+// 👇 HIER deine neue Suchfunktion einfügen
+function filterBestandTabelle() {
+  const filter = document.getElementById("bestandSearch").value.toLowerCase();
+  const rows = document.querySelectorAll("#bestandTabelle tbody tr");
+  
+  rows.forEach(row => {
+    const artikelName = row.querySelector(".name-input").value.toLowerCase();
+    row.style.display = artikelName.includes(filter) ? "" : "none";
+  });
+}
+
 
 
 
