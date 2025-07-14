@@ -130,6 +130,9 @@
   
   <label>Bis:</label>
   <input type="date" id="endDate" oninput="filterDashboard()">
+
+  <!-- ✅ HIER dein neuer Button -->
+  <button onclick="clearHistoryOnly()">Dashboard zurücksetzen (nur Ausgaben löschen)</button>
   
   <h3>Alle Ausgaben</h3>
   <table id="dashboardTabelle">
@@ -139,6 +142,7 @@
     <tbody></tbody>
   </table>
 </div>
+
 
 
 <h2>Mitarbeiter verwalten</h2>
@@ -1608,7 +1612,14 @@ function updateMitarbeiterDatalist() {
   // Aktuelle Liste sofort aktualisieren
   kategorieWechsel();
 }
-
+function clearHistoryOnly() {
+  if (confirm("Alle bisherigen Ausgaben und Rückgaben (Dashboard) wirklich löschen?")) {
+    history = [];
+    localStorage.setItem('history', JSON.stringify(history));
+    updateDashboard();
+    alert("Dashboard-Einträge (history) wurden gelöscht!");
+  }
+}
 
 // Initial aufrufen
 updateMitarbeiterDatalist();
