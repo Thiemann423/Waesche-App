@@ -1624,8 +1624,16 @@ function clearLocalStorage() {
   if (confirm("Alle gespeicherten Daten (Bestand, Mitarbeiter usw.) wirklich löschen?")) {
     localStorage.clear();
     location.reload();
+
+    // Nach Neuladen fragen, ob aus OneDrive geladen werden soll
+    setTimeout(() => {
+      if (confirm("Möchten Sie jetzt Ihre Daten aus OneDrive laden?")) {
+        loadDataFromOneDrive();
+      }
+    }, 1000); // 1 Sekunde warten, bis Seite neu geladen ist
   }
 }
+
 </script>
 
 <script>
