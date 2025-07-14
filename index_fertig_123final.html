@@ -1135,9 +1135,13 @@ function neuenArtikelHinzufuegen() {
     </td>
   `;
 
-  // Statt appendChild:
+  // Zeile oben einfügen
   tbody.prepend(row);
+
+  // ➕ Direkt das erste Feld (Name) fokussieren
+  row.querySelector(".name-input").focus();
 }
+
 
 
 
