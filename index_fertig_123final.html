@@ -210,24 +210,8 @@
 
 
 
-const msalConfig = {
-  auth: {
-    clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
-    authority: "https://login.microsoftonline.com/common",
-    redirectUri: window.location.origin
-  }
-};
-const msalInstance = new msal.PublicClientApplication(msalConfig);
-const scopes = ["Files.ReadWrite.All"];
-const accounts = msalInstance.getAllAccounts();
-if (!accounts || accounts.length === 0) {
-  msalInstance.loginPopup({ scopes: scopes }).then(() => {
-    alert("✅ Anmeldung erfolgreich! Jetzt können alle Kollegen die App nutzen und speichern im gemeinsamen OneDrive.");
-  }).catch(e => {
-    console.error(e);
-    alert("❌ Fehler bei der Anmeldung");
-  });
-}
+
+
 
 
 
@@ -1875,11 +1859,7 @@ updateMitarbeiterDatalist();
   }
 }
 
-// Direkt prüfen, ob jemand eingeloggt ist, und ggf. Login-Hinweis anzeigen
-const accounts = msalInstance.getAllAccounts();
-if (!accounts || accounts.length === 0) {
-  document.getElementById("loginNotice").style.display = "block";
-}
+
 
 function clearLocalStorage() {
   if (confirm("Alle gespeicherten Daten (Bestand, Mitarbeiter usw.) wirklich löschen?")) {
@@ -1973,6 +1953,26 @@ loadDataFromOneDrive = async function() {
 setInterval(erinnereAnLaden, 60000);
 
 console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinnerung.");
+
+
+(async function() {
+  const accounts = msalInstance.getAllAccounts();
+  if (!accounts || accounts.length === 0) {
+    try {
+      await msalInstance.loginPopup({ scopes: scopes });
+      console.log("✅ Benutzer erfolgreich eingeloggt");
+      document.getElementById("loginNotice").style.display = "none";
+    } catch (error) {
+      console.error("❌ Login fehlgeschlagen", error);
+      alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
+    }
+  } else {
+    console.log("✅ Benutzer ist schon eingeloggt");
+    document.getElementById("loginNotice").style.display = "none";
+  }
+})();
+
+
 </script>
 
 
