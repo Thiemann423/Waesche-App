@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
-    <!-- ✅ MSAL Bibliothek einfügen -->
+    <script src="https://alcdn.msauth.net/browser/2.34.0/js/msal-browser.min.js"></script>
+
   
   <style>
   body { font-family: sans-serif; padding: 20px; }
@@ -218,7 +219,7 @@
 
 const msalConfig = {
   auth: {
-    clientId: eb47dcba-4ea2-4a3a-9af1-20a017d605e9
+    clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
     authority: "https://login.microsoftonline.com/common",
     redirectUri: window.location.origin
   }
@@ -1853,6 +1854,30 @@ updateMitarbeiterDatalist();
 
 
 <script>
+
+  async function signInAndAcquireToken(force = false) {
+  try {
+    let account = msalInstance.getAllAccounts()[0];
+    if (!account || force) {
+      const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+      account = loginResponse.account;
+    }
+
+    await msalInstance.acquireTokenSilent({ scopes: scopes, account });
+    alert("Anmeldung erfolgreich!");
+    document.getElementById("loginNotice").style.display = "none";
+  } catch (error) {
+    console.error(error);
+    alert("Fehler bei der Anmeldung");
+  }
+}
+
+// Direkt prüfen, ob jemand eingeloggt ist, und ggf. Login-Hinweis anzeigen
+const accounts = msalInstance.getAllAccounts();
+if (!accounts || accounts.length === 0) {
+  document.getElementById("loginNotice").style.display = "block";
+}
+
 function clearLocalStorage() {
   if (confirm("Alle gespeicherten Daten (Bestand, Mitarbeiter usw.) wirklich löschen?")) {
     localStorage.clear();
