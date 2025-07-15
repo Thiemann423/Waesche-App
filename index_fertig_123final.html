@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
     <!-- ✅ MSAL Bibliothek einfügen -->
-  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  
   <style>
   body { font-family: sans-serif; padding: 20px; }
   input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
@@ -842,11 +842,7 @@ async function uploadToMyDrive(fileBlob, dateiname) {
 }
 
     
-function signInAndAcquireToken(force) {
-  msalInstance.loginPopup({ scopes: scopes })
-    .then(() => alert("Anmeldung erfolgreich!"))
-    .catch(e => console.error(e));
-}
+
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
