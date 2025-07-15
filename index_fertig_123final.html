@@ -4,59 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
-    <script src="https://alcdn.msauth.net/browser/2.34.0/js/msal-browser.min.js"></script>
 
-  
+  <!-- MSAL zuerst laden -->
+  <script src="https://alcdn.msauth.net/browser/2.34.0/js/msal-browser.min.js"></script>
+
+  <!-- Jetzt sofort Konfiguration setzen -->
+  <script>
+    const msalConfig = {
+      auth: {
+        clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9", // deine ID
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: window.location.origin
+      }
+    };
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    const scopes = ["Files.ReadWrite.All"];
+  </script>
+
+  <!-- Dein Style -->
   <style>
-  body { font-family: sans-serif; padding: 20px; }
-  input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
-  .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
-  canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
-  button { padding: 10px 20px; margin-top: 10px; }
-  .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-  h2 { margin-top: 40px; }
+    body { font-family: sans-serif; padding: 20px; }
+    input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
+    .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
+    canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
+    button { padding: 10px 20px; margin-top: 10px; }
+    .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    h2 { margin-top: 40px; }
 
-  /* --- Tabelle Bestand schöner und kompakter --- */
-  #bestandTabelle input[type="text"],
-  #bestandTabelle input[type="number"] {
-    width: 100%;
-    box-sizing: border-box;
-  }
-  #bestandTabelle td {
-    vertical-align: middle;
-  }
-
-  #bestandTabelle button {
-    display: block;
-    margin: 4px auto;
-    width: 90%;
-  }
-
-  #bestandTabelle td:nth-child(1) {
-    width: 200px;       /* 👈 Hier die Breite der Artikel-Spalte kleiner gesetzt */
-    max-width: 200px;
-    word-break: break-word;
-  }
-
-  #bestandTabelle td:nth-child(2),
-  #bestandTabelle td:nth-child(3) {
-    width: 80px;
-    text-align: center;
-  }
-
-  #bestandTabelle td:nth-child(4) {
-    width: 100px;
-  }
-  #bestandTabelle input.name-input {
-    font-size: 0.9em;
-  }
-</style>
-
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    #bestandTabelle input[type="text"],
+    #bestandTabelle input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #bestandTabelle td { vertical-align: middle; }
+    #bestandTabelle button { display: block; margin: 4px auto; width: 90%; }
+    #bestandTabelle td:nth-child(1) { width: 200px; max-width: 200px; word-break: break-word; }
+    #bestandTabelle td:nth-child(2),
+    #bestandTabelle td:nth-child(3) { width: 80px; text-align: center; }
+    #bestandTabelle td:nth-child(4) { width: 100px; }
+    #bestandTabelle input.name-input { font-size: 0.9em; }
+  </style>
 </head>
+
 
 <body>
   <h1>Wäscheauftrag</h1>
