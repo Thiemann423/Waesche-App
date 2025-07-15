@@ -216,6 +216,16 @@
 
 
 
+const msalConfig = {
+  auth: {
+    clientId: eb47dcba-4ea2-4a3a-9af1-20a017d605e9
+    authority: "https://login.microsoftonline.com/common",
+    redirectUri: window.location.origin
+  }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const scopes = ["Files.ReadWrite"];
 
 
   <script>
