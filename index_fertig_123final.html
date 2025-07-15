@@ -175,6 +175,20 @@
 <button onclick="addMitarbeiter()">Speichern</button>
 <button onclick="generateMitarbeiterPDF()">📄 PDF mit Mitarbeiterdaten erstellen</button>
 
+<h3>Mitarbeiter-Filter für PDF</h3>
+<label>Von:</label>
+<input type="date" id="filterVon">
+
+<label>Bis:</label>
+<input type="date" id="filterBis">
+
+<label>Nach:</label>
+<select id="filterTyp">
+  <option value="eintrittsDatum">Eintrittsdatum</option>
+  <option value="austrittsDatum">Austrittsdatum</option>
+</select>
+
+<button onclick="generateGefiltertesMitarbeiterPDF()">📄 PDF mit gefilterten Mitarbeitern erstellen</button>
 
 <h3>Freie Spindnummern</h3>
 <div id="freieSpindnummernContainer" style="display: none; column-count: 5; column-gap: 20px;"></div>
@@ -1660,6 +1674,56 @@ async function generateMitarbeiterPDF() {
   // Falls lokal speichern gewünscht, alternativ: doc.save(dateiname);
 
   alert("PDF wurde erstellt und hochgeladen!");
+}
+async function generateGefiltertesMitarbeiterPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const von = document.getElementById("filterVon").value;
+  const bis = document.getElementById("filterBis").value;
+  const typ = document.getElementById("filterTyp").value;
+
+  if (!von || !bis) {
+    alert("Bitte sowohl 'Von' als auch 'Bis' Datum auswählen!");
+    return;
+  }
+
+  const gefiltert = mitarbeiterListe.filter(m => {
+    const datum = m[typ];
+    return datum && datum >= von && datum <= bis;
+  });
+
+  if (gefiltert.length === 0) {
+    alert("Keine Mitarbeiter im gewählten Zeitraum gefunden!");
+    return;
+  }
+
+  doc.setFontSize(14);
+  doc.text("Gefilterte Mitarbeiterübersicht", 10, 15);
+  doc.setFontSize(10);
+
+  let y = 25;
+
+  gefiltert.forEach((m, i) => {
+    const eintritt = m.eintrittsDatum ? m.eintrittsDatum : "-";
+    const austritt = m.austrittsDatum ? m.austrittsDatum : "-";
+    const zeile = `${i + 1}. ${m.name}, Spind: ${m.nummer}, Eintritt: ${eintritt}, Austritt: ${austritt}, Kategorie: ${m.kategorie}`;
+    doc.text(zeile, 10, y);
+
+    y += 8;
+
+    if (y > 280) {
+      doc.addPage();
+      y = 15;
+    }
+  });
+
+  const dateiname = `Gefilterte_Mitarbeiter_${new Date().toISOString().split('T')[0]}.pdf`;
+  const pdfBlob = doc.output("blob");
+
+  await loginAndUploadPDF(pdfBlob, dateiname);
+
+  alert("Gefiltertes PDF wurde erstellt und hochgeladen!");
 }
 
 
