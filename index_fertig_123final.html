@@ -217,6 +217,8 @@
 
 
 
+
+
 const msalConfig = {
   auth: {
     clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
@@ -224,9 +226,19 @@ const msalConfig = {
     redirectUri: window.location.origin
   }
 };
-
 const msalInstance = new msal.PublicClientApplication(msalConfig);
-const scopes = ["Files.ReadWrite"];
+const scopes = ["Files.ReadWrite.All"];
+const accounts = msalInstance.getAllAccounts();
+if (!accounts || accounts.length === 0) {
+  msalInstance.loginPopup({ scopes: scopes }).then(() => {
+    alert("✅ Anmeldung erfolgreich! Jetzt können alle Kollegen die App nutzen und speichern im gemeinsamen OneDrive.");
+  }).catch(e => {
+    console.error(e);
+    alert("❌ Fehler bei der Anmeldung");
+  });
+}
+
+
 
 
   <script>
@@ -837,21 +849,20 @@ async function uploadToMyDrive(fileBlob, dateiname) {
         });
         accessToken = tokenResponse.accessToken;
       } catch (e) {
-        const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
-        accessToken = tokenResponse.accessToken;
+        console.error("❌ Silent Token konnte nicht geholt werden.", e);
+        alert("Fehler beim Token. Bitte Merten informieren.");
+        return;
       }
     } else {
-      const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
-      accessToken = tokenResponse.accessToken;
+      alert("⚠️ Kein Account gefunden! Bitte Merten informieren, damit er sich einmal anmeldet.");
+      return;
     }
 
     const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
 
     const response = await fetch(uploadUrl, {
       method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`
-      },
+      headers: { "Authorization": `Bearer ${accessToken}` },
       body: fileBlob
     });
 
@@ -866,6 +877,7 @@ async function uploadToMyDrive(fileBlob, dateiname) {
     alert("Fehler beim Abrufen des Tokens oder beim Upload");
   }
 }
+
 
 
 
@@ -1658,12 +1670,12 @@ async function loadDataFromOneDrive() {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+  const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+const response = await fetch(url, {
+  method: "GET",
+  headers: { "Authorization": `Bearer ${accessToken}` },
+});
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { "Authorization": `Bearer ${accessToken}` },
-    });
 
     if (response.ok) {
       const text = await response.text();
