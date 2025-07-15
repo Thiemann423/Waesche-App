@@ -800,18 +800,47 @@ function updateArtikelnummerInput(inputElement) {
     }
 const clientId = "eb47dcba-4ea2-4a3a-9af1-20a017d605e9";
 const tenantId = "f54f53bb-d0ff-4b78-bcf4-4aeeeb924428";
-const redirectUri = "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html";
-const scopes = ["Files.ReadWrite.All"];
+const clientSecret = "HIER_DEIN_SECRET_EINFÜGEN"; // <-- Dein Secret, was du im Azure-Portal erstellt hast!
+const userId = "5531d1b6-47a7-411e-98c0-63c9f8383213";
 
-const msalConfig = {
-  auth: {
-    clientId: clientId,
-    authority: `https://login.microsoftonline.com/${tenantId}`,
-    redirectUri: redirectUri,
+async function getAppAccessToken() {
+  const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  const body = new URLSearchParams();
+  body.append("client_id", clientId);
+  body.append("scope", "https://graph.microsoft.com/.default");
+  body.append("client_secret", clientSecret);
+  body.append("grant_type", "client_credentials");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body
+  });
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+async function uploadToMyDrive(fileBlob, dateiname) {
+  const accessToken = await getAppAccessToken();
+  const uploadUrl = `https://graph.microsoft.com/v1.0/users/${userId}/drive/root:/WaescheApp/${dateiname}:/content`;
+
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`
+    },
+    body: fileBlob
+  });
+
+  if (response.ok) {
+    alert("Datei erfolgreich in DEIN OneDrive gespeichert!");
+  } else {
+    console.error(await response.text());
+    alert("Fehler beim Hochladen!");
   }
-};
+}
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
     
 function signInAndAcquireToken(force) {
   msalInstance.loginPopup({ scopes: scopes })
@@ -948,7 +977,8 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   // ✅ Datei lokal speichern
 const dateiname = `Ausgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
 const pdfBlob = doc.output("blob");
-await loginAndUploadPDF(pdfBlob, dateiname);
+await uploadToMyDrive(pdfBlob, dateiname);
+
 
 // Optional lokal speichern, falls gewünscht:
 // doc.save(dateiname);
@@ -993,7 +1023,8 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   // ✅ Datei lokal speichern
 const dateiname = `Rueckgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
 const pdfBlob = doc.output("blob");
-await loginAndUploadPDF(pdfBlob, dateiname);
+await uploadToMyDrive(pdfBlob, dateiname);
+
 
 // Optional lokal speichern, falls gewünscht:
 // doc.save(dateiname);
@@ -1669,7 +1700,8 @@ async function generateMitarbeiterPDF() {
   const pdfBlob = doc.output("blob");
 
   // ✅ Hochladen in OneDrive (wie die anderen PDFs)
-  await loginAndUploadPDF(pdfBlob, dateiname);
+ await uploadToMyDrive(pdfBlob, dateiname);
+
 
   // Falls lokal speichern gewünscht, alternativ: doc.save(dateiname);
 
@@ -1721,7 +1753,8 @@ async function generateGefiltertesMitarbeiterPDF() {
   const dateiname = `Gefilterte_Mitarbeiter_${new Date().toISOString().split('T')[0]}.pdf`;
   const pdfBlob = doc.output("blob");
 
-  await loginAndUploadPDF(pdfBlob, dateiname);
+  await uploadToMyDrive(pdfBlob, dateiname);
+
 
   alert("Gefiltertes PDF wurde erstellt und hochgeladen!");
 }
