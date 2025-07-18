@@ -10,17 +10,29 @@
 
   <!-- Jetzt sofort Konfiguration setzen -->
   <script>
-    const msalConfig = {
-      auth: {
-        clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9", // deine ID
-        authority: "https://login.microsoftonline.com/common",
-      redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
-      }
-    };
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const scopes = ["Files.ReadWrite.All"];
-  </script>
+  const msalConfig = {
+  auth: {
+    clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
+    authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
+    redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
+  }
+};
 
+const scopes = ["Files.ReadWrite.All"];
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+
+  </script>
+<script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+        console.log("✅ Erfolgreich angemeldet:", loginResponse.account.username);
+      } catch (error) {
+        console.error("❌ Anmeldung fehlgeschlagen:", error);
+      }
+    });
+  </script>
   <!-- Dein Style -->
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -802,13 +814,7 @@ function updateArtikelnummerInput(inputElement) {
 
 
 
-  if (response.ok) {
-    alert("Datei erfolgreich in DEIN OneDrive gespeichert!");
-  } else {
-    console.error(await response.text());
-    alert("Fehler beim Hochladen!");
-  }
-}
+
 // Hier stehen viele andere Funktionen
 
 async function uploadToMyDrive(fileBlob, dateiname) {
@@ -833,13 +839,38 @@ async function uploadToMyDrive(fileBlob, dateiname) {
       return;
     }
 
-    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
+    // ✅ URL dynamisch basierend auf dem Dateinamen
+    const url = `https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
 
-    const response = await fetch(uploadUrl, {
+    // ✅ Content-Type erkennen
+    const isPdf = dateiname.toLowerCase().endsWith(".pdf");
+    const contentType = isPdf ? "application/pdf" : "application/json";
+
+    const response = await fetch(url, {
       method: "PUT",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": contentType
+      },
       body: fileBlob
     });
+
+    if (response.ok) {
+      alert(`✅ Datei erfolgreich hochgeladen: ${dateiname}`);
+    } else {
+      const errorText = await response.text();
+      console.error("❌ Upload-Fehler:", errorText);
+      alert("❌ Fehler beim Hochladen der Datei");
+    }
+
+  } catch (error) {
+    console.error("❌ Fehler in uploadToMyDrive:", error);
+    alert("❌ Allgemeiner Fehler beim Hochladen");
+  }
+}
+
+
+
 
     if (response.ok) {
       alert("Datei erfolgreich in dein OneDrive gespeichert!");
@@ -861,41 +892,52 @@ async function uploadToMyDrive(fileBlob, dateiname) {
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
-    // Erst Login, Benutzer auswählt
-   let accessToken;
-const accounts = msalInstance.getAllAccounts();
+    let accessToken;
+    const accounts = msalInstance.getAllAccounts();
 
-if (accounts.length > 0) {
-  try {
-    const tokenResponse = await msalInstance.acquireTokenSilent({
-      scopes: scopes,
-      account: accounts[0]
-    });
-    accessToken = tokenResponse.accessToken;
-  } catch (e) {
-    const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
-    accessToken = tokenResponse.accessToken;
-  }
-} else {
-  const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
-  accessToken = tokenResponse.accessToken;
-}
+    if (accounts.length > 0) {
+      try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          scopes: scopes,
+          account: accounts[0]
+        });
+        accessToken = tokenResponse.accessToken;
+      } catch (e) {
+        const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
+        accessToken = tokenResponse.accessToken;
+      }
+    } else {
+      const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
+      accessToken = tokenResponse.accessToken;
+    }
 
+    // ✅ Korrekte URL für PDF-Upload
+    const uploadUrl = `https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
 
-    // Upload
-    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
-    await fetch(uploadUrl, {
+    // ✅ Content-Type für PDF setzen
+    const response = await fetch(uploadUrl, {
       method: "PUT",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/pdf"
+      },
       body: fileBlob
     });
 
-    alert("Upload erfolgreich!");
+    if (response.ok) {
+      alert(`✅ PDF hochgeladen: ${dateiname}`);
+    } else {
+      const errorText = await response.text();
+      console.error("❌ Upload-Fehler:", errorText);
+      alert("❌ Fehler beim PDF-Upload");
+    }
+
   } catch (error) {
-    console.error(error);
-    alert("Fehler beim Upload");
+    console.error("❌ Fehler in loginAndUploadPDF:", error);
+    alert("❌ PDF-Upload fehlgeschlagen");
   }
 }
+
 
 
   function abschliessen() {
@@ -1645,10 +1687,18 @@ async function loadDataFromOneDrive() {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-  const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
-const response = await fetch(url, {
-  method: "GET",
-  headers: { "Authorization": `Bearer ${accessToken}` },
+// Upload
+const uploadUrl = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
+
+const response = await fetch(uploadUrl, {
+  method: "PUT", // ← wichtig: PUT für Upload
+  headers: {
+    "Authorization": `Bearer ${accessToken}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ bestand, history, mitarbeiterListe }) // oder dein JSON-Objekt
+});
+aders: { "Authorization": `Bearer ${accessToken}` },
 });
 
 
@@ -1790,24 +1840,32 @@ async function saveDataToOneDrive() {
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
 
-    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+    // ✅ Korrekte URL verwenden
+    const uploadUrl = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
 
-    const response = await fetch(url, {
+    // ✅ uploadUrl statt url!
+    const response = await fetch(uploadUrl, {
       method: "PUT",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: {
+        "Authorization": `Bearer ${accessToken}`
+      },
       body: blob
     });
 
     if (response.ok) {
-      alert("Daten erfolgreich in OneDrive gespeichert!");
+      alert("✅ Daten erfolgreich in OneDrive gespeichert!");
     } else {
-      alert("Fehler beim Speichern in OneDrive");
+      const errorText = await response.text();
+      console.error("❌ Fehler beim Upload:", errorText);
+      alert("❌ Fehler beim Speichern in OneDrive");
     }
+
   } catch (error) {
-    console.error(error);
-    alert("Fehler beim Speichern in OneDrive");
+    console.error("❌ Fehler in saveDataToOneDrive:", error);
+    alert("❌ Fehler beim Speichern in OneDrive");
   }
 }
+
 
 // Datalist aktualisieren
 function updateMitarbeiterDatalist() {
@@ -1842,7 +1900,7 @@ updateMitarbeiterDatalist();
 
 <script>
 
-  async function signInAndAcquireToken(force = false) {
+ async function signInAndAcquireToken(force = false) {
   try {
     let account = msalInstance.getAllAccounts()[0];
     if (!account || force) {
@@ -1858,6 +1916,7 @@ updateMitarbeiterDatalist();
     alert("Fehler bei der Anmeldung");
   }
 }
+
 
 
 
@@ -1892,6 +1951,8 @@ function endeBearbeitung() {
   setBearbeitungAktiv(false);
 }
 
+// Diese Überschreibungen erstmal deaktivieren!
+/*
 const originalAbschliessen = abschliessen;
 abschliessen = function() {
   startBearbeitung();
@@ -1911,6 +1972,9 @@ rueckgabeAbschliessen = function() {
     loadDataFromOneDrive();
   }, 500);
 };
+*/
+
+
 
 
 </script>
@@ -1955,31 +2019,31 @@ setInterval(erinnereAnLaden, 60000);
 console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinnerung.");
 
 
-(async function() {
-  const accounts = msalInstance.getAllAccounts();
-  if (!accounts || accounts.length === 0) {
-    try {
-      await msalInstance.loginPopup({ scopes: scopes });
-      console.log("✅ Benutzer erfolgreich eingeloggt");
-      document.getElementById("loginNotice").style.display = "none";
-    } catch (error) {
-      console.error("❌ Login fehlgeschlagen", error);
-      alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
+<script>
+  (async function () {
+    const accounts = msalInstance.getAllAccounts();
+    if (!accounts || accounts.length === 0) {
+      try {
+        await msalInstance.loginPopup({ scopes: scopes });
+        console.log("✅ Benutzer erfolgreich eingeloggt");
+        const notice = document.getElementById("loginNotice");
+        if (notice) notice.style.display = "none";
+      } catch (error) {
+        console.error("❌ Login fehlgeschlagen", error);
+        alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
+      }
+    } else {
+      console.log("✅ Benutzer ist schon eingeloggt");
+      const notice = document.getElementById("loginNotice");
+      if (notice) notice.style.display = "none";
     }
-  } else {
-    console.log("✅ Benutzer ist schon eingeloggt");
-    document.getElementById("loginNotice").style.display = "none";
-  }
-})();
-
-
+  })();
 </script>
 
 
-
-
-
-
+<script>
+  console.log("✅ Script am Ende wurde ausgeführt.");
+</script>
 
 
 </body>
