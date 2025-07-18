@@ -882,36 +882,52 @@ async function uploadToMyDrive(fileBlob, dateiname) {
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
-    // Erst Login, Benutzer auswählt
-   let accessToken;
-const accounts = msalInstance.getAllAccounts();
+    let accessToken;
+    const accounts = msalInstance.getAllAccounts();
 
-if (accounts.length > 0) {
-  try {
-    const tokenResponse = await msalInstance.acquireTokenSilent({
-      scopes: scopes,
-      account: accounts[0]
-    });
-    accessToken = tokenResponse.accessToken;
-  } catch (e) {
-    const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
-    accessToken = tokenResponse.accessToken;
-  }
-} else {
-  const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
-  accessToken = tokenResponse.accessToken;
-}
+    if (accounts.length > 0) {
+      try {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+          scopes: scopes,
+          account: accounts[0]
+        });
+        accessToken = tokenResponse.accessToken;
+      } catch (e) {
+        const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
+        accessToken = tokenResponse.accessToken;
+      }
+    } else {
+      const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
+      accessToken = tokenResponse.accessToken;
+    }
 
+    // ✅ Korrekte URL für PDF-Upload
+    const uploadUrl = `https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
 
-    // Upload
-    const uploadUrl = const url = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
-
-
-    await fetch(uploadUrl, {
+    // ✅ Content-Type für PDF setzen
+    const response = await fetch(uploadUrl, {
       method: "PUT",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/pdf"
+      },
       body: fileBlob
     });
+
+    if (response.ok) {
+      alert(`✅ PDF hochgeladen: ${dateiname}`);
+    } else {
+      const errorText = await response.text();
+      console.error("❌ Upload-Fehler:", errorText);
+      alert("❌ Fehler beim PDF-Upload");
+    }
+
+  } catch (error) {
+    console.error("❌ Fehler in loginAndUploadPDF:", error);
+    alert("❌ PDF-Upload fehlgeschlagen");
+  }
+}
+
 
     alert("Upload erfolgreich!");
   } catch (error) {
