@@ -1,65 +1,61 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
-
-  <!-- MSAL zuerst laden -->
-  <script src="https://alcdn.msauth.net/browser/2.34.0/js/msal-browser.min.js"></script>
-
-  <!-- Jetzt sofort Konfiguration setzen -->
-  <script>
-  const msalConfig = {
-  auth: {
-    clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
-    authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
-    redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
-  }
-};
-
-const scopes = ["Files.ReadWrite.All"];
-const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-
-  </script>
-<script>
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
-        console.log("✅ Erfolgreich angemeldet:", loginResponse.account.username);
-      } catch (error) {
-        console.error("❌ Anmeldung fehlgeschlagen:", error);
-      }
-    });
-  </script>
-  <!-- Dein Style -->
+    <!-- ✅ MSAL Bibliothek einfügen -->
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
-    .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
-    canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
-    button { padding: 10px 20px; margin-top: 10px; }
-    .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    h2 { margin-top: 40px; }
+  body { font-family: sans-serif; padding: 20px; }
+  input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
+  .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
+  canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
+  button { padding: 10px 20px; margin-top: 10px; }
+  .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  h2 { margin-top: 40px; }
 
-    #bestandTabelle input[type="text"],
-    #bestandTabelle input[type="number"] {
-      width: 100%;
-      box-sizing: border-box;
-    }
-    #bestandTabelle td { vertical-align: middle; }
-    #bestandTabelle button { display: block; margin: 4px auto; width: 90%; }
-    #bestandTabelle td:nth-child(1) { width: 200px; max-width: 200px; word-break: break-word; }
-    #bestandTabelle td:nth-child(2),
-    #bestandTabelle td:nth-child(3) { width: 80px; text-align: center; }
-    #bestandTabelle td:nth-child(4) { width: 100px; }
-    #bestandTabelle input.name-input { font-size: 0.9em; }
-  </style>
+  /* --- Tabelle Bestand schöner und kompakter --- */
+  #bestandTabelle input[type="text"],
+  #bestandTabelle input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #bestandTabelle td {
+    vertical-align: middle;
+  }
+
+  #bestandTabelle button {
+    display: block;
+    margin: 4px auto;
+    width: 90%;
+  }
+
+  #bestandTabelle td:nth-child(1) {
+    width: 200px;       /* 👈 Hier die Breite der Artikel-Spalte kleiner gesetzt */
+    max-width: 200px;
+    word-break: break-word;
+  }
+
+  #bestandTabelle td:nth-child(2),
+  #bestandTabelle td:nth-child(3) {
+    width: 80px;
+    text-align: center;
+  }
+
+  #bestandTabelle td:nth-child(4) {
+    width: 100px;
+  }
+  #bestandTabelle input.name-input {
+    font-size: 0.9em;
+  }
+</style>
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-
 
 <body>
   <h1>Wäscheauftrag</h1>
@@ -168,31 +164,9 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
   <option value="maenner">Mann</option>
   <option value="zeitarbeiter">Zeitarbeiter</option>
 </select>
-<!-- ⭐ NEUE FELDER in "Mitarbeiter verwalten" hinzufügen -->
-<label>Eintrittsdatum:</label>
-<input type="date" id="eintrittsDatum">
-
-<label>Austrittsdatum:</label>
-<input type="date" id="austrittsDatum">
 
 
 <button onclick="addMitarbeiter()">Speichern</button>
-<button onclick="generateMitarbeiterPDF()">📄 PDF mit Mitarbeiterdaten erstellen</button>
-
-<h3>Mitarbeiter-Filter für PDF</h3>
-<label>Von:</label>
-<input type="date" id="filterVon">
-
-<label>Bis:</label>
-<input type="date" id="filterBis">
-
-<label>Nach:</label>
-<select id="filterTyp">
-  <option value="eintrittsDatum">Eintrittsdatum</option>
-  <option value="austrittsDatum">Austrittsdatum</option>
-</select>
-
-<button onclick="generateGefiltertesMitarbeiterPDF()">📄 PDF mit gefilterten Mitarbeitern erstellen</button>
 
 <h3>Freie Spindnummern</h3>
 <div id="freieSpindnummernContainer" style="display: none; column-count: 5; column-gap: 20px;"></div>
@@ -217,13 +191,6 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
   </thead>
   <tbody></tbody>
 </table>
-
-
-
-
-
-
-
 
 
 
@@ -752,7 +719,7 @@ function sucheNachID() {
   const quelle = mitarbeiterListe.filter(m => m.kategorie === kategorie);
 
   const eintrag = quelle.find(m => m.nummer.toUpperCase() === id);
-  document.getElementById("mitarbeiterInput").value = eintrag ? `${eintrag.name} (${eintrag.nummer})` : "";
+  document.getElementById("mitarbeiterInput").value = eintrag ? ${eintrag.name} (${eintrag.nummer}) : "";
 }
 
 
@@ -765,16 +732,16 @@ function sucheNachID() {
 
   div.className = "artikel";
 
-div.innerHTML = `
+div.innerHTML = 
   <label>Artikel:</label>
   <input list="artikelListeGlobal" class="artikelSuchfeld" data-artikelfeld="${artikelId}">
   <label>Größe:</label>
-  <select>${kleiderGroessen.map(g => `<option>${g}</option>`).join('')}</select>
+  <select>${kleiderGroessen.map(g => <option>${g}</option>).join('')}</select>
   <label>Anzahl:</label>
   <input type="number" min="1" value="1">
   <label>Artikelnr.:</label>
   <input type="text" id="${artikelId}" readonly>
-`;
+;
 
 
 
@@ -808,136 +775,64 @@ function updateArtikelnummerInput(inputElement) {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+const clientId = "eb47dcba-4ea2-4a3a-9af1-20a017d605e9";
+const tenantId = "f54f53bb-d0ff-4b78-bcf4-4aeeeb924428";
+const redirectUri = "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html";
+const scopes = ["Files.ReadWrite.All"];
 
-
-
-
-
-
-
-// Hier stehen viele andere Funktionen
-
-async function uploadToMyDrive(fileBlob, dateiname) {
-  try {
-    const accounts = msalInstance.getAllAccounts();
-    let accessToken;
-
-    if (accounts.length > 0) {
-      try {
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          scopes: scopes,
-          account: accounts[0]
-        });
-        accessToken = tokenResponse.accessToken;
-      } catch (e) {
-        console.error("❌ Silent Token konnte nicht geholt werden.", e);
-        alert("Fehler beim Token. Bitte Merten informieren.");
-        return;
-      }
-    } else {
-      alert("⚠️ Kein Account gefunden! Bitte Merten informieren, damit er sich einmal anmeldet.");
-      return;
-    }
-
-    // ✅ URL dynamisch basierend auf dem Dateinamen
-    const url = `https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
-
-    // ✅ Content-Type erkennen
-    const isPdf = dateiname.toLowerCase().endsWith(".pdf");
-    const contentType = isPdf ? "application/pdf" : "application/json";
-
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": contentType
-      },
-      body: fileBlob
-    });
-
-    if (response.ok) {
-      alert(`✅ Datei erfolgreich hochgeladen: ${dateiname}`);
-    } else {
-      const errorText = await response.text();
-      console.error("❌ Upload-Fehler:", errorText);
-      alert("❌ Fehler beim Hochladen der Datei");
-    }
-
-  } catch (error) {
-    console.error("❌ Fehler in uploadToMyDrive:", error);
-    alert("❌ Allgemeiner Fehler beim Hochladen");
+const msalConfig = {
+  auth: {
+    clientId: clientId,
+    authority: https://login.microsoftonline.com/${tenantId},
+    redirectUri: redirectUri,
   }
-}
+};
 
-
-
-
-    if (response.ok) {
-      alert("Datei erfolgreich in dein OneDrive gespeichert!");
-    } else {
-      console.error(await response.text());
-      alert("Fehler beim Hochladen!");
-    }
-  } catch (error) {
-    console.error(error);
-    alert("Fehler beim Abrufen des Tokens oder beim Upload");
-  }
-}
-
-
-
-
+const msalInstance = new msal.PublicClientApplication(msalConfig);
     
-
+function signInAndAcquireToken(force) {
+  msalInstance.loginPopup({ scopes: scopes })
+    .then(() => alert("Anmeldung erfolgreich!"))
+    .catch(e => console.error(e));
+}
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
-    let accessToken;
-    const accounts = msalInstance.getAllAccounts();
+    // Erst Login, Benutzer auswählt
+   let accessToken;
+const accounts = msalInstance.getAllAccounts();
 
-    if (accounts.length > 0) {
-      try {
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          scopes: scopes,
-          account: accounts[0]
-        });
-        accessToken = tokenResponse.accessToken;
-      } catch (e) {
-        const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
-        accessToken = tokenResponse.accessToken;
-      }
-    } else {
-      const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
-      accessToken = tokenResponse.accessToken;
-    }
+if (accounts.length > 0) {
+  try {
+    const tokenResponse = await msalInstance.acquireTokenSilent({
+      scopes: scopes,
+      account: accounts[0]
+    });
+    accessToken = tokenResponse.accessToken;
+  } catch (e) {
+    const tokenResponse = await msalInstance.acquireTokenPopup({ scopes: scopes });
+    accessToken = tokenResponse.accessToken;
+  }
+} else {
+  const tokenResponse = await msalInstance.loginPopup({ scopes: scopes });
+  accessToken = tokenResponse.accessToken;
+}
 
-    // ✅ Korrekte URL für PDF-Upload
-    const uploadUrl = `https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
 
-    // ✅ Content-Type für PDF setzen
-    const response = await fetch(uploadUrl, {
+    // Upload
+    const uploadUrl = https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content;
+    await fetch(uploadUrl, {
       method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/pdf"
-      },
+      headers: { "Authorization": Bearer ${accessToken} },
       body: fileBlob
     });
 
-    if (response.ok) {
-      alert(`✅ PDF hochgeladen: ${dateiname}`);
-    } else {
-      const errorText = await response.text();
-      console.error("❌ Upload-Fehler:", errorText);
-      alert("❌ Fehler beim PDF-Upload");
-    }
-
+    alert("Upload erfolgreich!");
   } catch (error) {
-    console.error("❌ Fehler in loginAndUploadPDF:", error);
-    alert("❌ PDF-Upload fehlgeschlagen");
+    console.error(error);
+    alert("Fehler beim Upload");
   }
 }
-
 
 
   function abschliessen() {
@@ -970,7 +865,7 @@ bestand[artikelName][groesse] = Math.max(bestand[artikelName][groesse] - anzahl,
       anzahl: anzahl
     });
 
-    ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+    ausgabeDetails.push(${artikelName} (${groesse}) - ${anzahl} Stk.);
   });
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
@@ -1005,17 +900,17 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
 
   doc.setFontSize(14);
   doc.text("Wäscheausgabe Beleg", 10, 20);
-  doc.text(`Empfänger: ${empfaenger}`, 10, 30);
-  doc.text(`Kategorie: ${kategorie}`, 10, 40);
-  doc.text(`Abteilung: ${abteilung}`, 10, 50);
-  doc.text(`Datum: ${datum}`, 10, 60);
+  doc.text(Empfänger: ${empfaenger}, 10, 30);
+  doc.text(Kategorie: ${kategorie}, 10, 40);
+  doc.text(Abteilung: ${abteilung}, 10, 50);
+  doc.text(Datum: ${datum}, 10, 60);
   doc.text("Artikel:", 10, 70);
 
   details.forEach((line, index) => {
     doc.text(line, 10, 80 + index * 10);
   });
 
-  doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
+  doc.text(Bemerkung: ${bemerkung}, 10, 90 + details.length * 10);
 
   const canvasM = document.getElementById("sigMitarbeiter");
   const imgM = canvasM.toDataURL("image/png");
@@ -1028,10 +923,9 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
   // ✅ Datei lokal speichern
-const dateiname = `Ausgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
+const dateiname = Ausgabe_${mitarbeiter}_${datum}.pdf.replace(/ /g, "_");
 const pdfBlob = doc.output("blob");
-await uploadToMyDrive(pdfBlob, dateiname);
-
+await loginAndUploadPDF(pdfBlob, dateiname);
 
 // Optional lokal speichern, falls gewünscht:
 // doc.save(dateiname);
@@ -1051,17 +945,17 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
 
   doc.setFontSize(14);
   doc.text("Wäsche-Rückgabe Beleg", 10, 20);
-  doc.text(`Empfänger: ${empfaenger}`, 10, 30);
-  doc.text(`Kategorie: ${kategorie}`, 10, 40);
-  doc.text(`Abteilung: ${abteilung}`, 10, 50);
-  doc.text(`Datum: ${datum}`, 10, 60);
+  doc.text(Empfänger: ${empfaenger}, 10, 30);
+  doc.text(Kategorie: ${kategorie}, 10, 40);
+  doc.text(Abteilung: ${abteilung}, 10, 50);
+  doc.text(Datum: ${datum}, 10, 60);
   doc.text("Artikel:", 10, 70);
 
   details.forEach((line, index) => {
     doc.text(line, 10, 80 + index * 10);
   });
 
-  doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
+  doc.text(Bemerkung: ${bemerkung}, 10, 90 + details.length * 10);
 
   const canvasM = document.getElementById("sigMitarbeiter");
   const imgM = canvasM.toDataURL("image/png");
@@ -1074,10 +968,9 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
   // ✅ Datei lokal speichern
-const dateiname = `Rueckgabe_${mitarbeiter}_${datum}.pdf`.replace(/ /g, "_");
+const dateiname = Rueckgabe_${mitarbeiter}_${datum}.pdf.replace(/ /g, "_");
 const pdfBlob = doc.output("blob");
-await uploadToMyDrive(pdfBlob, dateiname);
-
+await loginAndUploadPDF(pdfBlob, dateiname);
 
 // Optional lokal speichern, falls gewünscht:
 // doc.save(dateiname);
@@ -1118,7 +1011,7 @@ function rueckgabeAbschliessen() {
       rueckgabe: true
     });
 
-    rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+    rueckgabeDetails.push(${artikelName} (${groesse}) - ${anzahl} Stk.);
   });
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
@@ -1183,7 +1076,7 @@ function updateBestandTabelle() {
       }
 
       const row = document.createElement("tr");
-      row.innerHTML = `
+      row.innerHTML = 
         <td><input type="text" value="${a.name}" data-index="${index}" class="name-input"></td>
         <td><input type="text" value="${groesse}" class="groesse-input"></td>
         <td><input type="number" value="${bestand[a.name][groesse]}" class="bestand-input" data-artikel="${a.name}" data-groesse="${groesse}"></td>
@@ -1191,7 +1084,7 @@ function updateBestandTabelle() {
           <button onclick="saveArtikel(this)">Speichern</button>
           <button onclick="deleteArtikel('${a.name}', '${groesse}')">Löschen</button>
         </td>
-      `;
+      ;
       tbody.appendChild(row);
     });
   });
@@ -1209,7 +1102,7 @@ function updateArtikelListe() {
   );
 
   const dl = document.querySelector("#artikelListeGlobal");
-  dl.innerHTML = artikelOhneDuplikate.map(a => `<option value="${a.name}">`).join('');
+  dl.innerHTML = artikelOhneDuplikate.map(a => <option value="${a.name}">).join('');
 }
 
 
@@ -1263,7 +1156,7 @@ function saveArtikel(button) {
 
 
 function deleteArtikel(name, groesse) {
-  if (confirm(`Artikel "${name}" in Größe "${groesse}" wirklich löschen?`)) {
+  if (confirm(Artikel "${name}" in Größe "${groesse}" wirklich löschen?)) {
     delete bestand[name][groesse];
 
     if (Object.keys(bestand[name]).length === 0) {
@@ -1279,7 +1172,7 @@ function neuenArtikelHinzufuegen() {
   const tbody = document.querySelector("#bestandTabelle tbody");
   const row = document.createElement("tr");
 
-  row.innerHTML = `
+  row.innerHTML = 
     <td><input type="text" value="" placeholder="Artikelname" class="name-input"></td>
     <td><input type="text" value="" placeholder="Größe" class="groesse-input"></td>
     <td><input type="number" value="0" class="bestand-input"></td>
@@ -1287,7 +1180,7 @@ function neuenArtikelHinzufuegen() {
       <button onclick="saveArtikel(this)">Speichern</button>
       <button onclick="this.closest('tr').remove()">Entfernen</button>
     </td>
-  `;
+  ;
 
   tbody.prepend(row);
   row.querySelector(".name-input").focus();
@@ -1343,7 +1236,7 @@ function updateDashboard() {
     if (endDate && entry.datum > endDate) return;
 
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${entry.datum}</td><td>${entry.mitarbeiter}</td><td>${entry.artikel}</td><td>${entry.groesse}</td><td>${entry.anzahl}</td>`;
+    row.innerHTML = <td>${entry.datum}</td><td>${entry.mitarbeiter}</td><td>${entry.artikel}</td><td>${entry.groesse}</td><td>${entry.anzahl}</td>;
     tbody.appendChild(row);
   });
 }
@@ -1432,7 +1325,7 @@ function kategorieWechsel() {
     mitarbeiterDatalist.innerHTML = "";
     quelle.forEach(m => {
       const option = document.createElement("option");
-      option.value = `${m.name} (${m.nummer})`;
+      option.value = ${m.name} (${m.nummer});
       mitarbeiterDatalist.appendChild(option);
     });
   }
@@ -1522,32 +1415,28 @@ function toggleMitarbeiterVerwaltung() {
 
 
 
-// ⭐ FUNKTION addMitarbeiter() vollständig ersetzen
 function addMitarbeiter() {
+  // 📝 Werte aus den Eingabefeldern holen
   const name = document.getElementById("neuerName").value.trim();
   const spind = document.getElementById("neuerSpind").value.trim();
   const kategorie = document.getElementById("neueKategorie").value;
-  const eintritt = document.getElementById("eintrittsDatum").value;
-  const austritt = document.getElementById("austrittsDatum").value;
 
+  // 🔎 Prüfung: Sind Felder leer?
   if (!name || !spind) {
     alert("Bitte Name und Spindnummer eingeben!");
     return;
   }
 
+  // 🔎 Prüfung: Gibt es diesen Mitarbeiter schon (Name & Spindnummer)?
   if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
     alert("Dieser Mitarbeiter existiert bereits!");
     return;
   }
 
-  mitarbeiterListe.push({ 
-    name, 
-    nummer: spind, 
-    kategorie, 
-    eintrittsDatum: eintritt, 
-    austrittsDatum: austritt 
-  });
+  // ✅ Mitarbeiter hinzufügen
+  mitarbeiterListe.push({ name, nummer: spind, kategorie });
 
+  // 💾 Nur Zusatzmitarbeiter speichern (nicht die festen Listen)
   localStorage.setItem('mitarbeiterListe', JSON.stringify(
     mitarbeiterListe.filter(m => 
       !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
@@ -1555,12 +1444,12 @@ function addMitarbeiter() {
     )
   ));
 
+  // 🧹 Felder zurücksetzen
   document.getElementById("neuerName").value = "";
   document.getElementById("neuerSpind").value = "";
   document.getElementById("neueKategorie").value = "frauen";
-  document.getElementById("eintrittsDatum").value = "";
-  document.getElementById("austrittsDatum").value = "";
 
+  // 🔄 Listen & Tabellen aktualisieren
   const neueZusatz = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
   mitarbeiterListe.length = 0;
   mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
@@ -1568,7 +1457,7 @@ function addMitarbeiter() {
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
   kategorieWechsel();
-  zeigeFreieSpindnummern();
+  zeigeFreieSpindnummern(); // ← optional: gleich Spindnummern aktualisieren
 
   alert("Mitarbeiter erfolgreich hinzugefügt!");
 }
@@ -1659,12 +1548,12 @@ function renderMitarbeiterTabelle() {
   tbody.innerHTML = "";
   mitarbeiterListe.forEach((m, index) => {
     const row = document.createElement("tr");
-   row.innerHTML = `
+   row.innerHTML = 
   <td>${m.name}</td>
   <td>${m.nummer}</td>
   <td>${m.kategorie || '-'}</td>
   <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
-`;
+;
 
     tbody.appendChild(row);
   });
@@ -1687,20 +1576,12 @@ async function loadDataFromOneDrive() {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-// Upload
-const uploadUrl = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
+    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
 
-const response = await fetch(uploadUrl, {
-  method: "PUT", // ← wichtig: PUT für Upload
-  headers: {
-    "Authorization": `Bearer ${accessToken}`,
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({ bestand, history, mitarbeiterListe }) // oder dein JSON-Objekt
-});
-aders: { "Authorization": `Bearer ${accessToken}` },
-});
-
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Authorization": Bearer ${accessToken} },
+    });
 
     if (response.ok) {
       const text = await response.text();
@@ -1732,95 +1613,6 @@ aders: { "Authorization": `Bearer ${accessToken}` },
     alert("Fehler beim Laden aus OneDrive");
   }
 }
-    // ⭐ GANZ UNTEN (bei deinen anderen Funktionen) hinzufügen
-async function generateMitarbeiterPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  
-  doc.setFontSize(14);
-  doc.text("Mitarbeiter-Übersicht für externe Firma", 10, 15);
-  doc.setFontSize(10);
-
-  let y = 25;
-
-  mitarbeiterListe.forEach((m, i) => {
-    const eintritt = m.eintrittsDatum ? m.eintrittsDatum : "-";
-    const austritt = m.austrittsDatum ? m.austrittsDatum : "-";
-    const zeile = `${i + 1}. ${m.name}, Spind: ${m.nummer}, Eintritt: ${eintritt}, Austritt: ${austritt}, Kategorie: ${m.kategorie}`;
-    doc.text(zeile, 10, y);
-
-    y += 8;
-
-    if (y > 280) {
-      doc.addPage();
-      y = 15;
-    }
-  });
-
-  const dateiname = `Mitarbeiter_Uebersicht_${new Date().toISOString().split('T')[0]}.pdf`;
-  const pdfBlob = doc.output("blob");
-
-  // ✅ Hochladen in OneDrive (wie die anderen PDFs)
- await uploadToMyDrive(pdfBlob, dateiname);
-
-
-  // Falls lokal speichern gewünscht, alternativ: doc.save(dateiname);
-
-  alert("PDF wurde erstellt und hochgeladen!");
-}
-async function generateGefiltertesMitarbeiterPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  const von = document.getElementById("filterVon").value;
-  const bis = document.getElementById("filterBis").value;
-  const typ = document.getElementById("filterTyp").value;
-
-  if (!von || !bis) {
-    alert("Bitte sowohl 'Von' als auch 'Bis' Datum auswählen!");
-    return;
-  }
-
-  const gefiltert = mitarbeiterListe.filter(m => {
-    const datum = m[typ];
-    return datum && datum >= von && datum <= bis;
-  });
-
-  if (gefiltert.length === 0) {
-    alert("Keine Mitarbeiter im gewählten Zeitraum gefunden!");
-    return;
-  }
-
-  doc.setFontSize(14);
-  doc.text("Gefilterte Mitarbeiterübersicht", 10, 15);
-  doc.setFontSize(10);
-
-  let y = 25;
-
-  gefiltert.forEach((m, i) => {
-    const eintritt = m.eintrittsDatum ? m.eintrittsDatum : "-";
-    const austritt = m.austrittsDatum ? m.austrittsDatum : "-";
-    const zeile = `${i + 1}. ${m.name}, Spind: ${m.nummer}, Eintritt: ${eintritt}, Austritt: ${austritt}, Kategorie: ${m.kategorie}`;
-    doc.text(zeile, 10, y);
-
-    y += 8;
-
-    if (y > 280) {
-      doc.addPage();
-      y = 15;
-    }
-  });
-
-  const dateiname = `Gefilterte_Mitarbeiter_${new Date().toISOString().split('T')[0]}.pdf`;
-  const pdfBlob = doc.output("blob");
-
-  await uploadToMyDrive(pdfBlob, dateiname);
-
-
-  alert("Gefiltertes PDF wurde erstellt und hochgeladen!");
-}
-
-
 async function saveDataToOneDrive() {
   try {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
@@ -1840,32 +1632,24 @@ async function saveDataToOneDrive() {
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
 
-    // ✅ Korrekte URL verwenden
-    const uploadUrl = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
+    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
 
-    // ✅ uploadUrl statt url!
-    const response = await fetch(uploadUrl, {
+    const response = await fetch(url, {
       method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`
-      },
+      headers: { "Authorization": Bearer ${accessToken} },
       body: blob
     });
 
     if (response.ok) {
-      alert("✅ Daten erfolgreich in OneDrive gespeichert!");
+      alert("Daten erfolgreich in OneDrive gespeichert!");
     } else {
-      const errorText = await response.text();
-      console.error("❌ Fehler beim Upload:", errorText);
-      alert("❌ Fehler beim Speichern in OneDrive");
+      alert("Fehler beim Speichern in OneDrive");
     }
-
   } catch (error) {
-    console.error("❌ Fehler in saveDataToOneDrive:", error);
-    alert("❌ Fehler beim Speichern in OneDrive");
+    console.error(error);
+    alert("Fehler beim Speichern in OneDrive");
   }
 }
-
 
 // Datalist aktualisieren
 function updateMitarbeiterDatalist() {
@@ -1873,7 +1657,7 @@ function updateMitarbeiterDatalist() {
   datalist.innerHTML = "";
   mitarbeiterListe.forEach(m => {
     const option = document.createElement("option");
-    option.value = `${m.name} (${m.nummer})`;
+    option.value = ${m.name} (${m.nummer});
     datalist.appendChild(option);
   });
 
@@ -1899,27 +1683,6 @@ updateMitarbeiterDatalist();
 
 
 <script>
-
- async function signInAndAcquireToken(force = false) {
-  try {
-    let account = msalInstance.getAllAccounts()[0];
-    if (!account || force) {
-      const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
-      account = loginResponse.account;
-    }
-
-    await msalInstance.acquireTokenSilent({ scopes: scopes, account });
-    alert("Anmeldung erfolgreich!");
-    document.getElementById("loginNotice").style.display = "none";
-  } catch (error) {
-    console.error(error);
-    alert("Fehler bei der Anmeldung");
-  }
-}
-
-
-
-
 function clearLocalStorage() {
   if (confirm("Alle gespeicherten Daten (Bestand, Mitarbeiter usw.) wirklich löschen?")) {
     localStorage.clear();
@@ -1951,8 +1714,6 @@ function endeBearbeitung() {
   setBearbeitungAktiv(false);
 }
 
-// Diese Überschreibungen erstmal deaktivieren!
-/*
 const originalAbschliessen = abschliessen;
 abschliessen = function() {
   startBearbeitung();
@@ -1972,9 +1733,6 @@ rueckgabeAbschliessen = function() {
     loadDataFromOneDrive();
   }, 500);
 };
-*/
-
-
 
 
 </script>
@@ -2017,34 +1775,14 @@ loadDataFromOneDrive = async function() {
 setInterval(erinnereAnLaden, 60000);
 
 console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinnerung.");
-
-
-<script>
-  (async function () {
-    const accounts = msalInstance.getAllAccounts();
-    if (!accounts || accounts.length === 0) {
-      try {
-        await msalInstance.loginPopup({ scopes: scopes });
-        console.log("✅ Benutzer erfolgreich eingeloggt");
-        const notice = document.getElementById("loginNotice");
-        if (notice) notice.style.display = "none";
-      } catch (error) {
-        console.error("❌ Login fehlgeschlagen", error);
-        alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
-      }
-    } else {
-      console.log("✅ Benutzer ist schon eingeloggt");
-      const notice = document.getElementById("loginNotice");
-      if (notice) notice.style.display = "none";
-    }
-  })();
 </script>
 
 
-<script>
-  console.log("✅ Script am Ende wurde ausgeführt.");
-</script>
+
+
+
+
 
 
 </body>
-</html>
+</html> 
