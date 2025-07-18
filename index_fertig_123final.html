@@ -2019,31 +2019,28 @@ setInterval(erinnereAnLaden, 60000);
 console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinnerung.");
 
 
-(async function() {
-  const accounts = msalInstance.getAllAccounts();
-  if (!accounts || accounts.length === 0) {
-    try {
-      await msalInstance.loginPopup({ scopes: scopes });
-      console.log("✅ Benutzer erfolgreich eingeloggt");
+<script>
+  (async function () {
+    const accounts = msalInstance.getAllAccounts();
+    if (!accounts || accounts.length === 0) {
+      try {
+        await msalInstance.loginPopup({ scopes: scopes });
+        console.log("✅ Benutzer erfolgreich eingeloggt");
+        document.getElementById("loginNotice").style.display = "none";
+      } catch (error) {
+        console.error("❌ Login fehlgeschlagen", error);
+        alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
+      }
+    } else {
+      console.log("✅ Benutzer ist schon eingeloggt");
       document.getElementById("loginNotice").style.display = "none";
-    } catch (error) {
-      console.error("❌ Login fehlgeschlagen", error);
-      alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
     }
-  } else {
-    console.log("✅ Benutzer ist schon eingeloggt");
-    document.getElementById("loginNotice").style.display = "none";
-  }
-})();
-
-
+  })();
 </script>
 
-
-
-
-
-
+<script>
+  console.log("✅ Script am Ende wurde ausgeführt.");
+</script>
 
 
 </body>
