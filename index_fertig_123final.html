@@ -2026,17 +2026,20 @@ console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinne
       try {
         await msalInstance.loginPopup({ scopes: scopes });
         console.log("✅ Benutzer erfolgreich eingeloggt");
-        document.getElementById("loginNotice").style.display = "none";
+        const notice = document.getElementById("loginNotice");
+        if (notice) notice.style.display = "none";
       } catch (error) {
         console.error("❌ Login fehlgeschlagen", error);
         alert("Login fehlgeschlagen, ohne Anmeldung funktioniert die App nicht!");
       }
     } else {
       console.log("✅ Benutzer ist schon eingeloggt");
-      document.getElementById("loginNotice").style.display = "none";
+      const notice = document.getElementById("loginNotice");
+      if (notice) notice.style.display = "none";
     }
   })();
 </script>
+
 
 <script>
   console.log("✅ Script am Ende wurde ausgeführt.");
