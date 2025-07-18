@@ -10,15 +10,17 @@
 
   <!-- Jetzt sofort Konfiguration setzen -->
   <script>
-    const msalConfig = {
-      auth: {
-        clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9", // deine ID
-        authority: "https://login.microsoftonline.com/common",
-      redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
-      }
-    };
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-    const scopes = ["Files.ReadWrite.All"];
+   const msalConfig = {
+  auth: {
+    clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
+    authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
+    redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
+  }
+};
+
+const scopes = ["Files.ReadWrite.All"];
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
   </script>
 
   <!-- Dein Style -->
@@ -827,7 +829,8 @@ async function uploadToMyDrive(fileBlob, dateiname) {
       return;
     }
 
-    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
+    const url = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
+
 
     const response = await fetch(uploadUrl, {
       method: "PUT",
@@ -877,7 +880,9 @@ if (accounts.length > 0) {
 
 
     // Upload
-    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
+    const uploadUrl = const url = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
+
+
     await fetch(uploadUrl, {
       method: "PUT",
       headers: { "Authorization": `Bearer ${accessToken}` },
@@ -1639,10 +1644,18 @@ async function loadDataFromOneDrive() {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-  const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
-const response = await fetch(url, {
-  method: "GET",
-  headers: { "Authorization": `Bearer ${accessToken}` },
+// Upload
+const uploadUrl = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
+
+const response = await fetch(uploadUrl, {
+  method: "PUT", // ← wichtig: PUT für Upload
+  headers: {
+    "Authorization": `Bearer ${accessToken}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ bestand, history, mitarbeiterListe }) // oder dein JSON-Objekt
+});
+aders: { "Authorization": `Bearer ${accessToken}` },
 });
 
 
@@ -1783,8 +1796,9 @@ async function saveDataToOneDrive() {
 
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
+// Upload
+const uploadUrl = "https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/bestand.json:/content";
 
-    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1836,7 +1850,7 @@ updateMitarbeiterDatalist();
 
 <script>
 
-  async function signInAndAcquireToken(force = false) {
+ async function signInAndAcquireToken(force = false) {
   try {
     let account = msalInstance.getAllAccounts()[0];
     if (!account || force) {
@@ -1852,6 +1866,7 @@ updateMitarbeiterDatalist();
     alert("Fehler bei der Anmeldung");
   }
 }
+
 
 
 
