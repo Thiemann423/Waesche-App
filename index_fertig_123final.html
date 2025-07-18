@@ -23,7 +23,16 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 
   </script>
-
+<script>
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+        console.log("✅ Erfolgreich angemeldet:", loginResponse.account.username);
+      } catch (error) {
+        console.error("❌ Anmeldung fehlgeschlagen:", error);
+      }
+    });
+  </script>
   <!-- Dein Style -->
   <style>
     body { font-family: sans-serif; padding: 20px; }
