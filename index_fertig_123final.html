@@ -1,30 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
-
-  <!-- MSAL zuerst laden -->
-  <script src="https://alcdn.msauth.net/browser/2.34.0/js/msal-browser.min.js"></script>
-
-  <!-- Jetzt sofort Konfiguration setzen -->
-  <script>
-  const msalConfig = {
-  auth: {
-    clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
-    authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
-    redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
-  }
-};
-
-const scopes = ["Files.ReadWrite.All"];
-const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-
-  </script>  
-<style>
+    <!-- ✅ MSAL Bibliothek einfügen -->
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  <style>
   body { font-family: sans-serif; padding: 20px; }
   input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
   .artikel { margin-bottom: 10px; border: 1px solid #ccc; padding: 10px; }
