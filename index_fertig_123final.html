@@ -830,10 +830,7 @@ async function uploadToMyDrive(fileBlob, dateiname) {
       return;
     }
 
-    // ✅ URL dynamisch basierend auf dem Dateinamen
     const url = `https://graph.microsoft.com/v1.0/users/merten_thiemann@petrifeinkost.de/drive/root:/Documents/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
-
-    // ✅ Content-Type erkennen
     const isPdf = dateiname.toLowerCase().endsWith(".pdf");
     const contentType = isPdf ? "application/pdf" : "application/json";
 
