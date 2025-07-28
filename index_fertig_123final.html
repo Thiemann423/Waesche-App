@@ -23,16 +23,7 @@ const msalInstance = new msal.PublicClientApplication(msalConfig);
 
 
   </script>
-<script>
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
-        console.log("✅ Erfolgreich angemeldet:", loginResponse.account.username);
-      } catch (error) {
-        console.error("❌ Anmeldung fehlgeschlagen:", error);
-      }
-    });
-  </script>
+
   <!-- Dein Style -->
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -1483,21 +1474,7 @@ function toggleFreieSpindnummern() {
 
 
 
-window.addEventListener("DOMContentLoaded", () => {
-  // await loadDataFromOneDrive();  ←  ❌ diese Zeile deaktivieren
 
-  kategorieWechsel();
-  updateBestandTabelle();
-  updateDashboard();
-  renderMitarbeiterTabelle();
-  updateArtikelListe();
-
-  document.querySelector(".bestand-container").style.display = "none";
-  document.getElementById("toggleBestandBtn").textContent = "Bestand anzeigen";
-
-  document.querySelector(".dashboard-container").style.display = "none";
-  document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
-});
 
 
 
@@ -2044,7 +2021,36 @@ console.log("Automatisches Intervall deaktiviert. Nur manuelles Laden mit Erinne
 <script>
   console.log("✅ Script am Ende wurde ausgeführt.");
 </script>
+<script>
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
+    console.log("✅ Erfolgreich angemeldet:", loginResponse.account.username);
+    document.getElementById("loginNotice").style.display = "none";
+  } catch (error) {
+    console.error("❌ Anmeldung fehlgeschlagen:", error);
+    alert("Login fehlgeschlagen. Ohne Anmeldung funktioniert die App nicht!");
+    return;
+  }
 
+  // Danach: App vollständig initialisieren
+  kategorieWechsel();
+  updateBestandTabelle();
+  updateDashboard();
+  renderMitarbeiterTabelle();
+  updateArtikelListe();
+  updateMitarbeiterDatalist();
+
+  document.querySelector(".bestand-container").style.display = "none";
+  document.getElementById("toggleBestandBtn").textContent = "Bestand anzeigen";
+
+  document.querySelector(".dashboard-container").style.display = "none";
+  document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
+
+  console.log("✅ Alles initialisiert!");
+});
+</script>
 
 </body>
 </html>
+
