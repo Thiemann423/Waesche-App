@@ -1060,7 +1060,8 @@ function updateBestandTabelle() {
         <td><input type="number" value="${bestand[name][groesse]}" class="bestand-input"></td>
         <td>
           <button onclick="saveArtikel(this)">Speichern</button>
-          <button onclick="deleteArtikel('${name}')">Löschen</button>
+         <button onclick="deleteArtikel(this)">Löschen</button>
+
         </td>
       `;
 
@@ -1162,15 +1163,37 @@ function filterBestandTabelle() {
 
 
 
-function deleteArtikel(name) {
-  if (confirm(`Artikel "${name}" wirklich löschen?`)) {
-    delete bestand[name];
-    localStorage.setItem('bestand', JSON.stringify(bestand));
+function deleteArtikel(button) {
+  const row = button.closest("tr");
+  const name = row.querySelector(".name-input")?.value.trim();
+  const groesse = row.querySelector(".groesse-input")?.value.trim();
+
+  if (!name || !groesse) {
+    alert("❌ Artikelname oder Größe fehlen.");
+    return;
+  }
+
+  if (!confirm(`❌ Wirklich löschen: ${name} (${groesse})?`)) return;
+
+  if (bestand[name] && bestand[name][groesse] !== undefined) {
+    delete bestand[name][groesse];
+
+    // Falls keine Größen mehr übrig sind, Namen komplett entfernen
+    if (Object.keys(bestand[name]).length === 0) {
+      delete bestand[name];
+    }
+
+    localStorage.setItem("bestand", JSON.stringify(bestand));
     updateBestandTabelle();
     updateArtikelListe();
-    alert("Artikel gelöscht.");
+    saveDataToOneDrive();
+
+    alert(`✅ ${name} (${groesse}) wurde gelöscht.`);
+  } else {
+    alert("❌ Artikel nicht gefunden.");
   }
 }
+
 
 
 
