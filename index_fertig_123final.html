@@ -756,19 +756,28 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${dateiname}:/content`;
-    await fetch(uploadUrl, {
+    const uploadUrl = `https://graph.microsoft.com/v1.0/users/merten.thiemann@petrifeinkost.de/drive/root:/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
+
+    const response = await fetch(uploadUrl, {
       method: "PUT",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: {
+        "Authorization": `Bearer ${accessToken}`
+      },
       body: fileBlob
     });
 
-    alert("Upload erfolgreich!");
+    if (response.ok) {
+      alert("✅ Upload erfolgreich!");
+    } else {
+      console.error(await response.text());
+      alert("❌ Upload fehlgeschlagen!");
+    }
   } catch (error) {
-    console.error(error);
-    alert("Fehler beim Upload");
+    console.error("Login oder Upload fehlgeschlagen", error);
+    alert("❌ Fehler beim Login oder Upload");
   }
 }
+
 
   function abschliessen() {
   const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
@@ -1430,7 +1439,7 @@ async function loadDataFromOneDrive() {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+    const url = "https://graph.microsoft.com/v1.0/users/merten.thiemann@petrifeinkost.de/drive/root:/WaescheApp/bestand.json:/content";
 
     const response = await fetch(url, {
       method: "GET",
@@ -1441,10 +1450,10 @@ async function loadDataFromOneDrive() {
       const text = await response.text();
       const data = JSON.parse(text);
 
-      // Bestand & History & Mitarbeiterliste aktualisieren
       bestand = data.bestand || {};
       history = data.history || [];
       const neueZusatz = data.mitarbeiterListe || [];
+
       mitarbeiterListe.length = 0;
       mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
 
@@ -1458,15 +1467,17 @@ async function loadDataFromOneDrive() {
       updateMitarbeiterDatalist();
       kategorieWechsel();
 
-      alert("Daten erfolgreich von OneDrive geladen!");
+      alert("✅ Daten erfolgreich von OneDrive geladen!");
     } else {
-      alert("Konnte Bestand nicht laden (Datei evtl. noch nicht vorhanden?)");
+      alert("❌ Konnte Daten nicht laden (Datei evtl. nicht vorhanden?)");
+      console.error(await response.text());
     }
   } catch (error) {
     console.error(error);
-    alert("Fehler beim Laden aus OneDrive");
+    alert("❌ Fehler beim Laden aus OneDrive");
   }
 }
+
 async function saveDataToOneDrive() {
   try {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
@@ -1486,7 +1497,7 @@ async function saveDataToOneDrive() {
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
 
-    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
+    const url = "https://graph.microsoft.com/v1.0/users/merten.thiemann@petrifeinkost.de/drive/root:/WaescheApp/bestand.json:/content";
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1495,15 +1506,17 @@ async function saveDataToOneDrive() {
     });
 
     if (response.ok) {
-      alert("Daten erfolgreich in OneDrive gespeichert!");
+      alert("✅ Daten erfolgreich in OneDrive gespeichert!");
     } else {
-      alert("Fehler beim Speichern in OneDrive");
+      alert("❌ Fehler beim Speichern in OneDrive");
+      console.error(await response.text());
     }
   } catch (error) {
     console.error(error);
-    alert("Fehler beim Speichern in OneDrive");
+    alert("❌ Fehler beim Speichern in OneDrive");
   }
 }
+
 
 // Datalist aktualisieren
 function updateMitarbeiterDatalist() {
