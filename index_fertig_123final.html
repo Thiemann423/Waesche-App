@@ -4,8 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wäschausgabe</title>
-    <!-- ✅ MSAL Bibliothek einfügen -->
+
+  <!-- ✅ CSS -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- ✅ MSAL Bibliothek -->
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  <script>
+    const msalConfig = {
+      auth: {
+        clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
+        authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
+        redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
+      }
+    };
+
+    const scopes = ["Files.ReadWrite.All"];
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+  </script>
+</head>
+<body>
+
+    
+  </script>
   <style>
   body { font-family: sans-serif; padding: 20px; }
   input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
@@ -756,7 +777,7 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-    const uploadUrl = `https://graph.microsoft.com/v1.0/users/merten.thiemann@petrifeinkost.de/drive/root:/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
+    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/${encodeURIComponent(dateiname)}:/content`;
 
     const response = await fetch(uploadUrl, {
       method: "PUT",
@@ -777,6 +798,7 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
     alert("❌ Fehler beim Login oder Upload");
   }
 }
+
 
 
   function abschliessen() {
@@ -1439,16 +1461,15 @@ async function loadDataFromOneDrive() {
     const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
     const accessToken = loginResponse.accessToken;
 
-    const url = "https://graph.microsoft.com/v1.0/users/merten.thiemann@petrifeinkost.de/drive/root:/WaescheApp/bestand.json:/content";
+    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
 
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: { "Authorization": `Bearer ${accessToken}` }
     });
 
     if (response.ok) {
-      const text = await response.text();
-      const data = JSON.parse(text);
+      const data = await response.json();
 
       bestand = data.bestand || {};
       history = data.history || [];
@@ -1467,14 +1488,14 @@ async function loadDataFromOneDrive() {
       updateMitarbeiterDatalist();
       kategorieWechsel();
 
-      alert("✅ Daten erfolgreich von OneDrive geladen!");
+      alert("✅ Daten erfolgreich geladen");
     } else {
-      alert("❌ Konnte Daten nicht laden (Datei evtl. nicht vorhanden?)");
+      alert("❌ Datei nicht gefunden oder keine Berechtigung");
       console.error(await response.text());
     }
   } catch (error) {
     console.error(error);
-    alert("❌ Fehler beim Laden aus OneDrive");
+    alert("❌ Fehler beim Laden");
   }
 }
 
@@ -1494,10 +1515,9 @@ async function saveDataToOneDrive() {
       mitarbeiterListe: neueZusatz
     };
 
-    const jsonString = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
-    const url = "https://graph.microsoft.com/v1.0/users/merten.thiemann@petrifeinkost.de/drive/root:/WaescheApp/bestand.json:/content";
+    const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1506,16 +1526,17 @@ async function saveDataToOneDrive() {
     });
 
     if (response.ok) {
-      alert("✅ Daten erfolgreich in OneDrive gespeichert!");
+      alert("✅ Daten gespeichert!");
     } else {
-      alert("❌ Fehler beim Speichern in OneDrive");
+      alert("❌ Fehler beim Speichern");
       console.error(await response.text());
     }
   } catch (error) {
     console.error(error);
-    alert("❌ Fehler beim Speichern in OneDrive");
+    alert("❌ Fehler beim Speichern");
   }
 }
+
 
 
 // Datalist aktualisieren
