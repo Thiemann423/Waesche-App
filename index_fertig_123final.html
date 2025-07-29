@@ -1573,16 +1573,32 @@ function filterMitarbeiterTabelle() {
   });
 }
 
+let loadInProgress = false; // global definieren
+
 async function loadDataFromOneDrive() {
+  if (loadInProgress) return;
+  loadInProgress = true;
+
   try {
-    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
-    const accessToken = loginResponse.accessToken;
+    const accounts = msalInstance.getAllAccounts();
+    let accessToken = null;
+
+    if (accounts.length === 0) {
+      const loginResponse = await msalInstance.loginPopup({ scopes });
+      accessToken = loginResponse.accessToken;
+    } else {
+      const tokenResponse = await msalInstance.acquireTokenSilent({
+        account: accounts[0],
+        scopes,
+      });
+      accessToken = tokenResponse.accessToken;
+    }
 
     const url = "https://graph.microsoft.com/v1.0/me/drive/root:/WaescheApp/bestand.json:/content";
 
     const response = await fetch(url, {
       method: "GET",
-      headers: { "Authorization": `Bearer ${accessToken}` }
+      headers: { "Authorization": `Bearer ${accessToken}` },
     });
 
     if (response.ok) {
@@ -1599,11 +1615,11 @@ async function loadDataFromOneDrive() {
       localStorage.setItem('history', JSON.stringify(history));
       localStorage.setItem('mitarbeiterListe', JSON.stringify(neueZusatz));
 
-      updateBestandTabelle();
-      updateDashboard();
-      renderMitarbeiterTabelle();
-      updateMitarbeiterDatalist();
-      kategorieWechsel();
+      updateBestandTabelle?.();
+      updateDashboard?.();
+      renderMitarbeiterTabelle?.();
+      updateMitarbeiterDatalist?.();
+      kategorieWechsel?.();
 
       alert("✅ Daten erfolgreich geladen");
     } else {
@@ -1613,13 +1629,33 @@ async function loadDataFromOneDrive() {
   } catch (error) {
     console.error(error);
     alert("❌ Fehler beim Laden");
+  } finally {
+    loadInProgress = false;
   }
 }
 
+
+let loginInProgress = false; // global definieren, außerhalb der Funktion
+
 async function saveDataToOneDrive() {
+  if (loginInProgress) return; // Blockiert parallele Aufrufe
+  loginInProgress = true;
+
   try {
-    const loginResponse = await msalInstance.loginPopup({ scopes: scopes });
-    const accessToken = loginResponse.accessToken;
+    // 👇 Nur einloggen, wenn noch niemand eingeloggt ist
+    const accounts = msalInstance.getAllAccounts();
+    let accessToken = null;
+
+    if (accounts.length === 0) {
+      const loginResponse = await msalInstance.loginPopup({ scopes });
+      accessToken = loginResponse.accessToken;
+    } else {
+      const tokenResponse = await msalInstance.acquireTokenSilent({
+        account: accounts[0],
+        scopes,
+      });
+      accessToken = tokenResponse.accessToken;
+    }
 
     const neueZusatz = mitarbeiterListe.filter(m => 
       !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
@@ -1648,12 +1684,14 @@ async function saveDataToOneDrive() {
       alert("❌ Fehler beim Speichern");
       console.error(await response.text());
     }
+
   } catch (error) {
     console.error(error);
     alert("❌ Fehler beim Speichern");
+  } finally {
+    loginInProgress = false; // immer wieder freigeben!
   }
 }
-
 
 
 // Datalist aktualisieren
