@@ -18,37 +18,42 @@
       }
     };
 
-    const scopes = ["Files.ReadWrite.All"];
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
+const scopes = ["Files.ReadWrite.All"];
+const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-    // 🔐 Auto-Login
-    window.addEventListener("DOMContentLoaded", async () => {
-      const account = msalInstance.getAllAccounts()[0];
-      if (account) {
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const accounts = msalInstance.getAllAccounts();
+
+    if (accounts.length > 0) {
+      const account = accounts[0];
+
+      if (account.username === "merten.thiemann@petri-feinkost.de") {
         msalInstance.setActiveAccount(account);
         console.log("✅ Automatisch eingeloggt als:", account.username);
-
-        if (account.username !== "merten.thiemann@petri-feinkost.de") {
-          alert("❌ Falsches Konto erkannt: " + account.username);
-          await msalInstance.logoutPopup();
-          await msalInstance.loginPopup({
-            scopes: scopes,
-            loginHint: "merten.thiemann@petri-feinkost.de"
-          });
-        }
+        return;
       } else {
-        try {
-          const loginResponse = await msalInstance.loginPopup({
-            scopes: scopes,
-            loginHint: "merten.thiemann@petri-feinkost.de"
-          });
-          msalInstance.setActiveAccount(loginResponse.account);
-          console.log("✅ Manuell eingeloggt als:", loginResponse.account.username);
-        } catch (error) {
-          console.error("❌ Login fehlgeschlagen", error);
-        }
+        alert("❌ Falsches Konto erkannt: " + account.username);
+        await msalInstance.logoutPopup();
       }
+    }
+
+    // Kein Konto oder falsches Konto → Login auslösen
+    const loginResponse = await msalInstance.loginPopup({
+      scopes,
+      loginHint: "merten.thiemann@petri-feinkost.de"
     });
+
+    msalInstance.setActiveAccount(loginResponse.account);
+    console.log("✅ Manuell eingeloggt als:", loginResponse.account.username);
+
+  } catch (error) {
+    console.error("❌ Login fehlgeschlagen", error);
+    alert("❌ Anmeldung nicht möglich. Bitte erneut versuchen.");
+  }
+});
+
+
   </script>
 
   <!-- Dein CSS -->
