@@ -1,27 +1,40 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Wäschausgabe</title>
+<script>
+  const msalConfig = {
+    auth: {
+      clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
+      authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
+      redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
+    }
+  };
 
-  <!-- ✅ CSS -->
-  <link rel="stylesheet" href="style.css">
+  const scopes = ["Files.ReadWrite.All"];
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-  <!-- ✅ MSAL Bibliothek -->
-  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
-  <script>
-    const msalConfig = {
-      auth: {
-        clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
-        authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
-        redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
+  // 🔐 Auto-Login: sofort beim Laden prüfen
+  window.addEventListener("DOMContentLoaded", async () => {
+    const account = msalInstance.getAllAccounts()[0];
+    if (account) {
+      msalInstance.setActiveAccount(account);
+      console.log("✅ Automatisch eingeloggt als:", account.username);
+
+      if (account.username !== "merten.thiemann@petrifeinkost.de") {
+        alert("❌ Falsches Konto erkannt: " + account.username + "\nBitte mit dem richtigen Konto anmelden.");
+        await msalInstance.logoutPopup();
+        await msalInstance.loginPopup({ scopes: scopes, loginHint: "merten.thiemann@petrifeinkost.de" });
       }
-    };
+    } else {
+      // Kein gespeicherter Login – Popup starten
+      try {
+        const loginResponse = await msalInstance.loginPopup({ scopes: scopes, loginHint: "merten.thiemann@petrifeinkost.de" });
+        msalInstance.setActiveAccount(loginResponse.account);
+        console.log("✅ Manuell eingeloggt als:", loginResponse.account.username);
+      } catch (error) {
+        console.error("❌ Login fehlgeschlagen", error);
+      }
+    }
+  });
+</script>
 
-    const scopes = ["Files.ReadWrite.All"];
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
-  </script>
 </head>
 <body>
 
