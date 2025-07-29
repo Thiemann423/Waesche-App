@@ -155,17 +155,30 @@
   <button onclick="abschliessen()">Ausgabe abschließen & PDF speichern</button>
   <button onclick="rueckgabeAbschliessen()">Rückgabe abschließen & PDF speichern</button>
 
-  <h2>Bestand verwalten</h2>
-  <button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
-  <div class="bestand-container">
-    <h3>Aktueller Bestand</h3>
-    <table id="bestandTabelle">
-      <thead>
-        <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+ <h2>Bestand verwalten</h2>
+<button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
+
+<!-- 🔽 Formular einfügen -->
+<h3>Neuen Artikel hinzufügen</h3>
+<div id="artikelFormular">
+  <input type="text" id="neuerName" placeholder="Artikelname">
+  <input type="text" id="neueGroesse" placeholder="Größe (z. B. M)">
+  <input type="number" id="neuerBestand" placeholder="Bestand">
+  <button onclick="addNeuerArtikel()">➕ Hinzufügen</button>
+</div>
+
+<!-- ✅ Bestehender Bestand-Container bleibt so -->
+<div class="bestand-container">
+  <h3>Aktueller Bestand</h3>
+  <table id="bestandTabelle">
+    <thead>
+      <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
 
 
 
@@ -1036,7 +1049,7 @@ function updateBestandTabelle() {
 
       row.innerHTML = `
         <td><input type="text" value="${name}" data-original-name="${name}" data-groesse="${groesse}" class="name-input"></td>
-        <td>${groesse}</td>
+       <td><input type="text" value="${groesse}" class="groesse-input"></td>
         <td><input type="number" value="${bestand[name][groesse]}" class="bestand-input"></td>
         <td>
           <button onclick="saveArtikel(this)">Speichern</button>
@@ -1065,12 +1078,16 @@ function updateArtikelListe() {
 
 function saveArtikel(button) {
   const row = button.closest("tr");
+
   const nameInput = row.querySelector(".name-input");
+  const groesseInput = row.querySelector(".groesse-input");
   const bestandInput = row.querySelector(".bestand-input");
 
   const originalName = nameInput.dataset.originalName;
-  const groesse = nameInput.dataset.groesse;
+  const alteGroesse = nameInput.dataset.groesse;
+
   const newName = nameInput.value.trim();
+  const newGroesse = groesseInput.value.trim();
   const newBestand = parseInt(bestandInput.value) || 0;
 
   if (!newName) {
@@ -1078,24 +1095,52 @@ function saveArtikel(button) {
     return;
   }
 
-  if (newName !== originalName) {
-    if (!bestand[newName]) bestand[newName] = {};
-    bestand[newName][groesse] = newBestand;
+  // Neuen Eintrag anlegen, wenn nötig
+  if (!bestand[newName]) bestand[newName] = {};
+  bestand[newName][newGroesse] = newBestand;
 
-    delete bestand[originalName][groesse];
+  // Alten Eintrag löschen, wenn sich Name oder Größe geändert hat
+  if (newName !== originalName || newGroesse !== alteGroesse) {
+    delete bestand[originalName][alteGroesse];
 
     if (Object.keys(bestand[originalName]).length === 0) {
       delete bestand[originalName];
     }
-  } else {
-    bestand[newName][groesse] = newBestand;
   }
 
+  // Speichern
   localStorage.setItem('bestand', JSON.stringify(bestand));
   updateBestandTabelle();
   updateArtikelListe();
-  alert("Artikel gespeichert.");
+  saveDataToOneDrive(); // optional, wenn OneDrive-Speicherung gewünscht
+  alert("✅ Artikel gespeichert.");
 }
+
+function addNeuerArtikel() {
+  const name = document.getElementById("neuerName").value.trim();
+  const groesse = document.getElementById("neueGroesse").value.trim();
+  const bestandWert = parseInt(document.getElementById("neuerBestand").value) || 0;
+
+  if (!name || !groesse) {
+    alert("❌ Bitte Name und Größe angeben.");
+    return;
+  }
+
+  if (!bestand[name]) bestand[name] = {};
+  bestand[name][groesse] = bestandWert;
+
+  localStorage.setItem("bestand", JSON.stringify(bestand));
+  updateBestandTabelle();
+  updateArtikelListe();
+  saveDataToOneDrive(); // optional, falls du das nutzt
+
+  document.getElementById("neuerName").value = "";
+  document.getElementById("neueGroesse").value = "";
+  document.getElementById("neuerBestand").value = "";
+
+  alert("✅ Neuer Artikel hinzugefügt.");
+}
+
 
 
 function deleteArtikel(name) {
