@@ -1398,38 +1398,43 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
 
-
 function addMitarbeiter() {
   const nameInput = document.getElementById("neuerName");
   const spindInput = document.getElementById("neuerSpind");
   const kategorieInput = document.getElementById("neueKategorie");
 
-  // 🔒 Sicherheits-Prüfung: existieren die Felder überhaupt?
+  // Sicherheitscheck
   if (!nameInput || !spindInput || !kategorieInput) {
     alert("❌ Eingabefelder nicht gefunden!");
     return;
   }
 
-  const name = nameInput.value.trim();
-  const spind = spindInput.value.trim();
+  let name = nameInput.value.trim();
+  let spind = spindInput.value.trim().replace(/\D/g, ''); // Nur Ziffern
   const kategorie = kategorieInput.value;
 
-  // 🔎 Prüfung: Felder leer?
+  // Zusätzliche Sicherheit
   if (!name || !spind) {
+    console.log("❌ Name oder Spind leer:", { name, spind });
     alert("❌ Bitte Name und Spindnummer eingeben!");
     return;
   }
 
-  // 🔁 Prüfung: Mitarbeiter schon vorhanden?
+  // Führende Null für Männer hinzufügen, falls nötig
+  if (kategorie === "maenner" && spind.length === 2) {
+    spind = "0" + spind;
+  }
+
+  // Prüfung auf Doppelte
   if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
     alert("❌ Dieser Mitarbeiter existiert bereits!");
     return;
   }
 
-  // ✅ Hinzufügen
+  // Hinzufügen
   mitarbeiterListe.push({ name, nummer: spind, kategorie });
 
-  // 💾 Nur Zusatz speichern
+  // Nur Zusatzmitarbeiter speichern
   const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
     !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
     !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
@@ -1437,7 +1442,7 @@ function addMitarbeiter() {
 
   localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
 
-  // 🔄 Aktualisieren
+  // Listen aktualisieren
   mitarbeiterListe.length = 0;
   mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...zusatzMitarbeiter);
 
@@ -1445,15 +1450,16 @@ function addMitarbeiter() {
   updateMitarbeiterDatalist();
   kategorieWechsel();
   zeigeFreieSpindnummern();
-  saveDataToOneDrive();
+  if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 
-  // 🧹 Felder zurücksetzen
+  // Eingabefelder leeren
   nameInput.value = "";
   spindInput.value = "";
   kategorieInput.value = "frauen";
 
   alert("✅ Mitarbeiter erfolgreich hinzugefügt.");
 }
+
 
 
 
