@@ -1400,51 +1400,61 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
 function addMitarbeiter() {
-  // 📝 Werte aus den Eingabefeldern holen
-  const name = document.getElementById("neuerName").value.trim();
-  const spind = document.getElementById("neuerSpind").value.trim();
-  const kategorie = document.getElementById("neueKategorie").value;
+  const nameInput = document.getElementById("neuerName");
+  const spindInput = document.getElementById("neuerSpind");
+  const kategorieInput = document.getElementById("neueKategorie");
 
-  // 🔎 Prüfung: Sind Felder leer?
+  // 🔒 Sicherheits-Prüfung: existieren die Felder überhaupt?
+  if (!nameInput || !spindInput || !kategorieInput) {
+    alert("❌ Eingabefelder nicht gefunden!");
+    return;
+  }
+
+  const name = nameInput.value.trim();
+  const spind = spindInput.value.trim();
+  const kategorie = kategorieInput.value;
+
+  // 🔎 Prüfung: Felder leer?
   if (!name || !spind) {
-    alert("Bitte Name und Spindnummer eingeben!");
+    alert("❌ Bitte Name und Spindnummer eingeben!");
     return;
   }
 
-  // 🔎 Prüfung: Gibt es diesen Mitarbeiter schon (Name & Spindnummer)?
+  // 🔁 Prüfung: Mitarbeiter schon vorhanden?
   if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
-    alert("Dieser Mitarbeiter existiert bereits!");
+    alert("❌ Dieser Mitarbeiter existiert bereits!");
     return;
   }
 
-  // ✅ Mitarbeiter hinzufügen
+  // ✅ Hinzufügen
   mitarbeiterListe.push({ name, nummer: spind, kategorie });
 
-  // 💾 Nur Zusatzmitarbeiter speichern (nicht die festen Listen)
-  localStorage.setItem('mitarbeiterListe', JSON.stringify(
-    mitarbeiterListe.filter(m => 
-      !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
-      !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
-    )
-  ));
+  // 💾 Nur Zusatz speichern
+  const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
+    !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
+    !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
+  );
 
-  // 🧹 Felder zurücksetzen
-  document.getElementById("neuerName").value = "";
-  document.getElementById("neuerSpind").value = "";
-  document.getElementById("neueKategorie").value = "frauen";
+  localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
 
-  // 🔄 Listen & Tabellen aktualisieren
-  const neueZusatz = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
+  // 🔄 Aktualisieren
   mitarbeiterListe.length = 0;
-  mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
+  mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...zusatzMitarbeiter);
 
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
   kategorieWechsel();
-  zeigeFreieSpindnummern(); // ← optional: gleich Spindnummern aktualisieren
+  zeigeFreieSpindnummern();
+  saveDataToOneDrive();
 
-  alert("Mitarbeiter erfolgreich hinzugefügt!");
+  // 🧹 Felder zurücksetzen
+  nameInput.value = "";
+  spindInput.value = "";
+  kategorieInput.value = "frauen";
+
+  alert("✅ Mitarbeiter erfolgreich hinzugefügt.");
 }
+
 
 
 
