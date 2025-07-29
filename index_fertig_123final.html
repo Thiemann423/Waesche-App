@@ -789,18 +789,8 @@ function updateArtikelnummerInput(inputElement) {
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-const clientId = "eb47dcba-4ea2-4a3a-9af1-20a017d605e9";
-const tenantId = "f54f53bb-d0ff-4b78-bcf4-4aeeeb924428";
-const redirectUri = "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html";
-const scopes = ["Files.ReadWrite.All"];
 
-const msalConfig = {
-  auth: {
-    clientId: clientId,
-    authority: `https://login.microsoftonline.com/${tenantId}`,
-    redirectUri: redirectUri,
-  }
-};
+
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
