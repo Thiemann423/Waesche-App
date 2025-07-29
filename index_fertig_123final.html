@@ -792,7 +792,7 @@ function updateArtikelnummerInput(inputElement) {
 
 
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
@@ -1307,18 +1307,7 @@ window.addEventListener("DOMContentLoaded", () => {
 // Mitarbeiterarray aus localStorage laden oder leeres Array
 
 
-// Mitarbeiterverwaltung anzeigen/ausblenden
-function toggleMitarbeiterVerwaltung() {
-  const container = document.querySelector(".mitarbeiter-container");
-  const btn = document.getElementById("toggleMitarbeiterBtn");
-  if (container.style.display === "none" || container.style.display === "") {
-    container.style.display = "block";
-    btn.textContent = "Mitarbeiterverwaltung ausblenden";
-  } else {
-    container.style.display = "none";
-    btn.textContent = "Mitarbeiterverwaltung anzeigen";
-  }
-}
+
 
 
 
@@ -1599,6 +1588,21 @@ function clearLocalStorage() {
   }
 }
 </script>
+<script>
+  function toggleMitarbeiterVerwaltung() {
+    const container = document.querySelector(".mitarbeiter-container");
+    const btn = document.getElementById("toggleMitarbeiterBtn");
+    if (container.style.display === "none" || container.style.display === "") {
+      container.style.display = "block";
+      btn.textContent = "Mitarbeiterverwaltung ausblenden";
+    } else {
+      container.style.display = "none";
+      btn.textContent = "Mitarbeiterverwaltung anzeigen";
+    }
+  }
+</script>
+</body>
+</html>
 
 
 </body>
