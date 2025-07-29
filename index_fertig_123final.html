@@ -170,6 +170,12 @@
 <!-- ✅ Bestehender Bestand-Container bleibt so -->
 <div class="bestand-container">
   <h3>Aktueller Bestand</h3>
+
+  <!-- 🔍 Suchfeld einfügen -->
+  <label>Suche:</label>
+  <input type="text" id="bestandSuche" placeholder="Artikel oder Größe..." oninput="filterBestandTabelle()">
+
+  <!-- ✅ Tabelle bleibt wie sie ist -->
   <table id="bestandTabelle">
     <thead>
       <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
@@ -177,6 +183,7 @@
     <tbody></tbody>
   </table>
 </div>
+
 
 
 
@@ -1139,6 +1146,18 @@ function addNeuerArtikel() {
   document.getElementById("neuerBestand").value = "";
 
   alert("✅ Neuer Artikel hinzugefügt.");
+}
+function filterBestandTabelle() {
+  const suchbegriff = document.getElementById("bestandSuche").value.toLowerCase();
+  const rows = document.querySelectorAll("#bestandTabelle tbody tr");
+
+  rows.forEach(row => {
+    const artikel = row.querySelector(".name-input")?.value.toLowerCase() || "";
+    const groesse = row.querySelector(".groesse-input")?.value.toLowerCase() || "";
+    
+    const sichtbar = artikel.includes(suchbegriff) || groesse.includes(suchbegriff);
+    row.style.display = sichtbar ? "" : "none";
+  });
 }
 
 
