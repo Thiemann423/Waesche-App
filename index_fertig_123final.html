@@ -28,19 +28,19 @@
         msalInstance.setActiveAccount(account);
         console.log("✅ Automatisch eingeloggt als:", account.username);
 
-        if (account.username !== "merten.thiemann@petrifeinkost.de") {
+        if (account.username !== "merten.thiemann@petri-feinkost.de") {
           alert("❌ Falsches Konto erkannt: " + account.username);
           await msalInstance.logoutPopup();
           await msalInstance.loginPopup({
             scopes: scopes,
-            loginHint: "merten.thiemann@petrifeinkost.de"
+            loginHint: "merten.thiemann@petri-feinkost.de"
           });
         }
       } else {
         try {
           const loginResponse = await msalInstance.loginPopup({
             scopes: scopes,
-            loginHint: "merten.thiemann@petrifeinkost.de"
+            loginHint: "merten.thiemann@petri-feinkost.de"
           });
           msalInstance.setActiveAccount(loginResponse.account);
           console.log("✅ Manuell eingeloggt als:", loginResponse.account.username);
