@@ -1366,27 +1366,30 @@ function addMitarbeiter() {
  
 
 // Mitarbeiter löschen
+// Mitarbeiter löschen (nach Index in der Tabelle)
 function deleteMitarbeiter(index) {
   if (confirm("Mitarbeiter wirklich löschen?")) {
+    const geloeschter = mitarbeiterListe[index]; // ✅ Zugriff auf den zu löschenden Mitarbeiter
+
+    // 1. Spindnummer als frei zurückgeben
+    if (geloeschter && !freieSpindnummern.includes(geloeschter.nummer)) {
+      freieSpindnummern.push(geloeschter.nummer);
+      freieSpindnummern.sort((a, b) => a - b);
+    }
+
+    // 2. Mitarbeiter aus Liste entfernen
     mitarbeiterListe.splice(index, 1);
-    localStorage.setItem('mitarbeiterListe', JSON.stringify(
-      mitarbeiterListe.filter(m => 
-        !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
-        !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
-      )
-    ));
 
-    // Nach dem Löschen neu laden
-    const neueZusatz = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
-    mitarbeiterListe.length = 0;
-    mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...neueZusatz);
-
+    // 3. Speichern und Anzeigen aktualisieren
+    saveDataToOneDrive(); // ✅ wichtig für OneDrive Sync
     renderMitarbeiterTabelle();
     updateMitarbeiterDatalist();
     kategorieWechsel();
-    zeigeFreieSpindnummern(); // <-- HIER hinzufügen
+    zeigeFreieSpindnummern();
   }
 }
+
+
 
 function zeigeFreieSpindnummern() {
   const kategorie = document.getElementById("neueKategorie").value;
