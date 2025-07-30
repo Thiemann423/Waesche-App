@@ -216,7 +216,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     <tbody></tbody>
   </table>
 </div>
+<div style="margin: 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; background-color: #f9f9f9;">
 
+  <h3>Speichern & Laden (OneDrive)</h3>
+  <button onclick="saveDataToOneDrive()">In OneDrive speichern</button>
+  <button onclick="loadDataFromOneDrive()">Aus OneDrive laden</button>
+</div>
 
 <h2>Mitarbeiter verwalten</h2>
 <button onclick="toggleMitarbeiterVerwaltung()" id="toggleMitarbeiterBtn">Mitarbeiterverwaltung anzeigen</button>
@@ -1721,9 +1726,7 @@ updateMitarbeiterDatalist();
 <h2>Speicher zurücksetzen</h2>
 <button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
 
-<h2>Speichern & Laden (OneDrive)</h2>
-<button onclick="saveDataToOneDrive()">In OneDrive speichern</button>
-<button onclick="loadDataFromOneDrive()">Aus OneDrive laden</button>
+
 
 <script>
 function clearLocalStorage() {
