@@ -223,7 +223,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 <div class="mitarbeiter-container" style="display: block;">
  <h3>Neuen Mitarbeiter hinzufügen</h3>
 <label>Name:</label>
-<input type="text" id="neuerName">
+<input type="text" id="neuerMitarbeiterName">
+
 
 <label>Spindnummer:</label>
 <input type="text" id="neuerSpind" placeholder="z. B. 045 (Männer) oder 45 (Frauen)">
@@ -1403,7 +1404,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // ✅ Funktion ist global verfügbar
 function addMitarbeiter() {
-  const nameInput = document.getElementById("neuerName");
+  const nameInput = document.getElementById("neuerMitarbeiterName");
   const spindInput = document.getElementById("neuerSpind");
   const kategorieInput = document.getElementById("neueKategorie");
 
