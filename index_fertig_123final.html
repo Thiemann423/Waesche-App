@@ -1474,29 +1474,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
  
 
-// Mitarbeiter löschen
-// Mitarbeiter löschen (nach Index in der Tabelle)
 function deleteMitarbeiter(index) {
-  if (confirm("Mitarbeiter wirklich löschen?")) {
-    const geloeschter = mitarbeiterListe[index]; // ✅ Zugriff auf den zu löschenden Mitarbeiter
+  if (!confirm("Mitarbeiter wirklich löschen?")) return;
 
-    // 1. Spindnummer als frei zurückgeben
-    if (geloeschter && !freieSpindnummern.includes(geloeschter.nummer)) {
-      freieSpindnummern.push(geloeschter.nummer);
-      freieSpindnummern.sort((a, b) => a - b);
-    }
+  mitarbeiterListe.splice(index, 1);
 
-    // 2. Mitarbeiter aus Liste entfernen
-    mitarbeiterListe.splice(index, 1);
+  const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
+    !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
+    !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
+  );
+  localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
 
-    // 3. Speichern und Anzeigen aktualisieren
-    saveDataToOneDrive(); // ✅ wichtig für OneDrive Sync
-    renderMitarbeiterTabelle();
-    updateMitarbeiterDatalist();
-    kategorieWechsel();
-    zeigeFreieSpindnummern();
-  }
+  renderMitarbeiterTabelle();
+  updateMitarbeiterDatalist();
+  kategorieWechsel();
+  zeigeFreieSpindnummern();
+  if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 }
+
 
 
 
