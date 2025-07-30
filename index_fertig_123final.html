@@ -1478,25 +1478,40 @@ document.addEventListener("DOMContentLoaded", function () {
 // Mitarbeiter löschen (nach Index in der Tabelle)
 function deleteMitarbeiter(index) {
   if (confirm("Mitarbeiter wirklich löschen?")) {
-    const geloeschter = mitarbeiterListe[index]; // ✅ Zugriff auf den zu löschenden Mitarbeiter
+    const geloeschter = mitarbeiterListe[index];
 
     // 1. Spindnummer als frei zurückgeben
-    if (geloeschter && !freieSpindnummern.includes(geloeschter.nummer)) {
-      freieSpindnummern.push(geloeschter.nummer);
-      freieSpindnummern.sort((a, b) => a - b);
+    if (geloeschter && geloeschter.kategorie === "frauen") {
+      const frauenFreie = [
+        "5", "18", "45", "101", "102", "105", "106", "107", "109", "110",
+        "112", "113", "114", "115", "116", "117", "118", "119", "120", "121",
+        "122", "123", "124", "125", "126", "127", "128", "129", "130", "140",
+        "161", "162", "163", "164", "165", "166", "167", "168", "169", "170",
+        "171", "172", "173"
+      ];
+      if (!frauenFreie.includes(geloeschter.nummer)) {
+        frauenFreie.push(geloeschter.nummer);
+      }
     }
 
-    // 2. Mitarbeiter aus Liste entfernen
+    // 2. Mitarbeiter entfernen
     mitarbeiterListe.splice(index, 1);
 
-    // 3. Speichern und Anzeigen aktualisieren
-    saveDataToOneDrive(); // ✅ wichtig für OneDrive Sync
+    // 3. Lokalen Speicher aktualisieren
+    const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
+      !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
+      !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
+    );
+    localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
+
+    // 4. UI aktualisieren
     renderMitarbeiterTabelle();
     updateMitarbeiterDatalist();
-    kategorieWechsel();
     zeigeFreieSpindnummern();
+    if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
   }
 }
+
 
 
 
@@ -1550,18 +1565,22 @@ if (kategorie === "frauen") {
 
 
 
-// Tabelle aktualisieren
 function renderMitarbeiterTabelle() {
   const tbody = document.querySelector("#mitarbeiterTabelle tbody");
   tbody.innerHTML = "";
+  
   mitarbeiterListe.forEach((m, index) => {
     const row = document.createElement("tr");
-   row.innerHTML = `
-  <td>${m.name}</td>
-  <td>${m.nummer}</td>
-  <td>${m.kategorie || '-'}</td>
-  <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
-`;
+    row.innerHTML = `
+      <td>${m.name}</td>
+      <td>${m.nummer}</td>
+      <td>${m.kategorie || '-'}</td>
+      <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
+    </tr>`; // ✅ fehlt bei dir aktuell
+    tbody.appendChild(row);
+  });
+}
+
 
     tbody.appendChild(row);
   });
