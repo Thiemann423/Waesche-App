@@ -112,7 +112,44 @@ window.addEventListener("DOMContentLoaded", async () => {
 </style>
 
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- jsPDF-Bibliothek laden -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Dein neuer Filter- & PDF-Code -->
+<script>
+  function filterNachStart() {
+    const filter = document.getElementById("filterStartdatum").value;
+    const gefundene = mitarbeiterListe.filter(m => m.start && m.start.startsWith(filter));
+
+    const ergebnisListe = document.getElementById("startErgebnisse");
+    if (gefundene.length === 0) {
+      ergebnisListe.innerHTML = "<li>Keine passenden Mitarbeiter gefunden.</li>";
+    } else {
+      ergebnisListe.innerHTML = gefundene.map(m => `<li>${m.name} (Start: ${m.start})</li>`).join("");
+    }
+
+    window._letzteGefilterteMitarbeiter = gefundene;
+  }
+
+  function exportiereStartPdf() {
+    const gefundene = window._letzteGefilterteMitarbeiter || [];
+    if (gefundene.length === 0) {
+      alert("Keine gefilterten Mitarbeiter vorhanden.");
+      return;
+    }
+
+    const doc = new jspdf.jsPDF();
+    doc.setFontSize(14);
+    doc.text("Mitarbeiter-Startübersicht", 10, 10);
+
+    gefundene.forEach((m, i) => {
+      doc.text(`${i + 1}. ${m.name} – Start: ${m.start}`, 10, 20 + i * 10);
+    });
+
+    doc.save("mitarbeiter_startübersicht.pdf");
+  }
+</script>
+
 </head>
 
 <body>
@@ -229,6 +266,8 @@ window.addEventListener("DOMContentLoaded", async () => {
  <h3>Neuen Mitarbeiter hinzufügen</h3>
 <label>Name:</label>
 <input type="text" id="neuerMitarbeiterName">
+<label>Startdatum:</label>
+<input type="date" id="neuerStart">
 
 
 <label>Spindnummer:</label>
@@ -242,6 +281,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   <option value="zeitarbeiter">Zeitarbeiter</option>
 </select>
 
+<h3>Mitarbeiter nach Startdatum filtern</h3>
+<label>Start ab (Monat):</label>
+<input type="month" id="filterStartdatum">
+<button onclick="filterNachStart()">Filtern</button>
+<button onclick="exportiereStartPdf()">Als PDF exportieren</button>
+
+<ul id="startErgebnisse" style="margin-top:10px;"></ul>
 
 <button onclick="addMitarbeiter()">Speichern</button>
 
@@ -1412,8 +1458,9 @@ function addMitarbeiter() {
   const nameInput = document.getElementById("neuerMitarbeiterName");
   const spindInput = document.getElementById("neuerSpind");
   const kategorieInput = document.getElementById("neueKategorie");
+  const startInput = document.getElementById("neuerStart"); // ✅ NEU
 
-  if (!nameInput || !spindInput || !kategorieInput) {
+  if (!nameInput || !spindInput || !kategorieInput || !startInput) {
     alert("❌ Eingabefelder nicht gefunden!");
     return;
   }
@@ -1437,7 +1484,8 @@ function addMitarbeiter() {
     return;
   }
 
-  mitarbeiterListe.push({ name, nummer: spind, kategorie });
+  // ✅ Startdatum in Mitarbeiterobjekt einfügen
+  mitarbeiterListe.push({ name, nummer: spind, kategorie, start: startInput.value });
 
   const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
     !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
@@ -1455,9 +1503,11 @@ function addMitarbeiter() {
   zeigeFreieSpindnummern();
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 
+  // ✅ Felder zurücksetzen
   nameInput.value = "";
   spindInput.value = "";
   kategorieInput.value = "frauen";
+  startInput.value = ""; // ✅ neu hinzugefügt
 
   alert("✅ Mitarbeiter erfolgreich hinzugefügt.");
 }
@@ -1467,6 +1517,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Hier z. B. initiale Funktionen aufrufen, z. B.:
   updateMitarbeiterDatalist();
 });
+
 
 
 
