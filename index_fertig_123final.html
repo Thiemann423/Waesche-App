@@ -1423,52 +1423,7 @@ dashboardContainer.insertBefore(btn30, dashboardContainer.children[dashboardCont
       });
     }
 
-function kategorieWechsel() {
-  const kategorie = document.getElementById("kategorieSelect").value;
-  const mitarbeiterInput = document.getElementById("mitarbeiterInput");
-  const mitarbeiterDatalist = document.getElementById("mitarbeiterListe");
-  const idInput = document.getElementById("idInput");
 
-  // Felder leeren
-  mitarbeiterInput.value = "";
-  idInput.value = "";
-
-  if (kategorie === "produktion") {
-    // Mitarbeiterfeld deaktivieren
-    mitarbeiterInput.disabled = true;
-    mitarbeiterDatalist.innerHTML = "";
-    idInput.disabled = true;
-  } else {
-    // Mitarbeiterfeld aktivieren
-    mitarbeiterInput.disabled = false;
-    idInput.disabled = false;
-
-    let quelle = [];
-    if (kategorie === "frauen") {
-      quelle = [...frauenMitarbeiterListe];
-    } else if (kategorie === "maenner") {
-      quelle = [...maennerMitarbeiterListe];
-    } else if (kategorie === "zeitarbeiter") {
-      quelle = [];
-    }
-
-    // Zusatzmitarbeiter dieser Kategorie
-    const zusatz = mitarbeiterListe.filter(m => 
-      m.kategorie === kategorie && 
-      !frauenMitarbeiterListe.includes(m) && 
-      !maennerMitarbeiterListe.includes(m)
-    );
-
-    quelle = [...quelle, ...zusatz];
-
-    mitarbeiterDatalist.innerHTML = "";
-    quelle.forEach(m => {
-      const option = document.createElement("option");
-      option.value = `${m.name} (${m.nummer})`;
-      mitarbeiterDatalist.appendChild(option);
-    });
-  }
-}
 
 
 
@@ -1863,18 +1818,7 @@ async function saveDataToOneDrive() {
   }
 }
 
-// ✅ Helfer global lassen
-function normSpind(s) {
-  const d = String(s || "").replace(/\D/g, "");
-  return d ? String(parseInt(d, 10)) : "";
-}
-function displaySpind(m) {
-  const d = String(m.nummer || "").replace(/\D/g, "");
-  if (m.kategorie === "maenner") {
-    return String(m.nummer || "").startsWith("0") ? String(m.nummer) : "0" + d;
-  }
-  return d;
-}
+
 
 // ✅ Nur noch die Liste für die aktuelle Kategorie neu aufbauen
 function updateMitarbeiterDatalist() {
