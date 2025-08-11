@@ -935,7 +935,7 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
 
 
 
-  function abschliessen() {
+ function abschliessen() {
   const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
   const datum = document.getElementById("datum").value;
   const bemerkung = document.getElementById("bemerkung").value;
@@ -944,38 +944,34 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
 
   const ausgabeDetails = [];
 
-document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
-  const artikelInput = div.querySelector(".artikelSuchfeld");
-  const groesse = div.querySelector("select:nth-of-type(1)").value;
-  const inputAnzahl = div.querySelector("input[type='number']");
-  const artikelName = artikelInput.value;
-  const anzahl = parseInt(inputAnzahl.value, 10) || 0;
+  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+    const artikelInput = div.querySelector(".artikelSuchfeld");
+    const groesse = div.querySelector("select:nth-of-type(1)").value;
+    const inputAnzahl = div.querySelector("input[type='number']");
+    const artikelName = artikelInput.value;
+    const anzahl = parseInt(inputAnzahl.value, 10) || 0;
 
-  const nameKey = normalizeArtikelName(artikelName);
+    const nameKey = normalizeArtikelName(artikelName);
 
-  // ⛔️ NEU: leere Artikel ODER Anzahl <= 0 überspringen
-  if (!nameKey || anzahl <= 0) return;
+    // leere Zeilen/Anzahl 0 ignorieren
+    if (!nameKey || anzahl <= 0) return;
 
-  if (!bestand[nameKey]) bestand[nameKey] = {};
-  if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
+    if (!bestand[nameKey]) bestand[nameKey] = {};
+    if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
-  const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
-  bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
+    const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
+    bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
 
-  history.push({
-    datum: datum || new Date().toISOString().split('T')[0],
-    mitarbeiter: mitarbeiterName,
-    artikel: artikelName,
-    groesse: groesse,
-    anzahl: anzahl
+    history.push({
+      datum: datum || new Date().toISOString().split('T')[0],
+      mitarbeiter: mitarbeiterName,
+      artikel: artikelName,
+      groesse: groesse,
+      anzahl: anzahl
+    });
+
+    ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
   });
-
-  ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
-});
-
-  ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
-});
-
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
   localStorage.setItem('history', JSON.stringify(history));
