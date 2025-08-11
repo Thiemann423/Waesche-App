@@ -298,8 +298,20 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 
 <h3>Aktuelle Mitarbeiter</h3>
+
 <label>Suche:</label>
-<input type="text" id="mitarbeiterSearch" placeholder="Name oder Spindnummer eingeben..." oninput="filterMitarbeiterTabelle()">
+<input type="text" id="mitarbeiterSearch"
+       placeholder="Name oder Spindnummer eingeben..."
+       oninput="filterMitarbeiterTabelle()">
+
+<label>Kategorie:</label>
+<select id="mitarbeiterKategorieFilter" onchange="renderMitarbeiterTabelle()">
+  <option value="alle" selected>Alle</option>
+  <option value="frauen">Frauen</option>
+  <option value="maenner">Männer</option>
+  <option value="zeitarbeiter">Zeitarbeiter</option>
+</select>
+
 <table id="mitarbeiterTabelle">
   <thead>
     <tr>
@@ -311,6 +323,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   </thead>
   <tbody></tbody>
 </table>
+
 
 
 
@@ -1658,19 +1671,27 @@ function displaySpind(m) {
   return d;
 }
 
-// 🔹 ERSETZT deine renderMitarbeiterTabelle()
 function renderMitarbeiterTabelle() {
   const tbody = document.querySelector("#mitarbeiterTabelle tbody");
-  tbody.innerHTML = "";
+  const gewaehlteKat = document.getElementById("mitarbeiterKategorieFilter")?.value || "alle";
 
-  const sorted = [...mitarbeiterListe].sort((a, b) => {
+  // Basisliste ggf. nach Kategorie filtern
+  let liste = [...mitarbeiterListe];
+  if (gewaehlteKat !== "alle") {
+    liste = liste.filter(m => (m.kategorie || "") === gewaehlteKat);
+  }
+
+  // Sortierung wie bisher (Spind numerisch, dann Name)
+  liste.sort((a, b) => {
     const na = parseInt(normSpind(a.nummer) || "0", 10);
     const nb = parseInt(normSpind(b.nummer) || "0", 10);
     if (na !== nb) return na - nb;
     return a.name.localeCompare(b.name);
   });
 
-  sorted.forEach(m => {
+  // Tabelle neu aufbauen
+  tbody.innerHTML = "";
+  liste.forEach(m => {
     const idx = mitarbeiterListe.findIndex(x =>
       x.name === m.name && x.nummer === m.nummer && x.kategorie === m.kategorie
     );
@@ -1683,7 +1704,11 @@ function renderMitarbeiterTabelle() {
     `;
     tbody.appendChild(row);
   });
+
+  // bereits eingegebenen Suchtext direkt anwenden
+  filterMitarbeiterTabelle();
 }
+
 
 
 function filterMitarbeiterTabelle() {
