@@ -721,7 +721,7 @@ const artikel = [
 
 artikel.sort((a, b) => a.name.localeCompare(b.name));
 
-    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "37/38", "39/40", "41/42","43/44", "45/45"];
+    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "37/38", "39/40", "41/42","43/44", "45/46"];
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let artikelStamm = JSON.parse(localStorage.getItem('artikelStamm')) || {};
@@ -830,15 +830,13 @@ function migrateBestandKeys() {
     initSignatureCanvas("sigAusgabe");
 
 function sucheNachID() {
-  const id = document.getElementById("idInput").value.trim().toUpperCase();
+  const id = document.getElementById("idInput").value.trim();
   const kategorie = document.getElementById("kategorieSelect").value;
-
-  // In der kombinierten Liste filtern (mitarbeiterListe enthält alle, auch neue!)
   const quelle = mitarbeiterListe.filter(m => m.kategorie === kategorie);
-
-  const eintrag = quelle.find(m => m.nummer.toUpperCase() === id);
-  document.getElementById("mitarbeiterInput").value = eintrag ? `${eintrag.name} (${eintrag.nummer})` : "";
+  const eintrag = quelle.find(m => normSpind(m.nummer) === normSpind(id));
+  document.getElementById("mitarbeiterInput").value = eintrag ? `${eintrag.name} (${displaySpind(eintrag)})` : "";
 }
+
 
 
 
@@ -1564,9 +1562,11 @@ function addMitarbeiter() {
     return;
   }
 
-  if (kategorie === "maenner" && spind.length === 2) {
-    spind = "0" + spind;
-  }
+  // statt: if (kategorie === "maenner" && spind.length === 2) { spind = "0" + spind; }
+if (kategorie === "maenner" && !/^0/.test(spind)) {
+  spind = "0" + spind;        // Männer immer mit führender 0 speichern
+}
+
 
   if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
     alert("❌ Dieser Mitarbeiter existiert bereits!");
@@ -1690,22 +1690,46 @@ if (kategorie === "frauen") {
 
 
 
-// Tabelle aktualisieren
+// 🔹 Helfer oben einmal definieren
+function normSpind(s) {
+  const d = String(s || "").replace(/\D/g, "");
+  return d ? String(parseInt(d, 10)) : "";
+}
+function displaySpind(m) {
+  const d = String(m.nummer || "").replace(/\D/g, "");
+  if (m.kategorie === "maenner") {
+    return String(m.nummer || "").startsWith("0") ? String(m.nummer) : "0" + d;
+  }
+  return d;
+}
+
+// 🔹 ERSETZT deine renderMitarbeiterTabelle()
 function renderMitarbeiterTabelle() {
   const tbody = document.querySelector("#mitarbeiterTabelle tbody");
   tbody.innerHTML = "";
-  mitarbeiterListe.forEach((m, index) => {
-    const row = document.createElement("tr");
-   row.innerHTML = `
-  <td>${m.name}</td>
-  <td>${m.nummer}</td>
-  <td>${m.kategorie || '-'}</td>
-  <td><button onclick="deleteMitarbeiter(${index})">Löschen</button></td>
-`;
 
+  const sorted = [...mitarbeiterListe].sort((a, b) => {
+    const na = parseInt(normSpind(a.nummer) || "0", 10);
+    const nb = parseInt(normSpind(b.nummer) || "0", 10);
+    if (na !== nb) return na - nb;
+    return a.name.localeCompare(b.name);
+  });
+
+  sorted.forEach(m => {
+    const idx = mitarbeiterListe.findIndex(x =>
+      x.name === m.name && x.nummer === m.nummer && x.kategorie === m.kategorie
+    );
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${m.name}</td>
+      <td>${displaySpind(m)}</td>
+      <td>${m.kategorie || '-'}</td>
+      <td><button onclick="deleteMitarbeiter(${idx})">Löschen</button></td>
+    `;
     tbody.appendChild(row);
   });
 }
+
 
 function filterMitarbeiterTabelle() {
   const filter = document.getElementById("mitarbeiterSearch").value.toLowerCase();
@@ -1839,20 +1863,82 @@ async function saveDataToOneDrive() {
   }
 }
 
+// ✅ Helfer global lassen
+function normSpind(s) {
+  const d = String(s || "").replace(/\D/g, "");
+  return d ? String(parseInt(d, 10)) : "";
+}
+function displaySpind(m) {
+  const d = String(m.nummer || "").replace(/\D/g, "");
+  if (m.kategorie === "maenner") {
+    return String(m.nummer || "").startsWith("0") ? String(m.nummer) : "0" + d;
+  }
+  return d;
+}
 
-// Datalist aktualisieren
+// ✅ Nur noch die Liste für die aktuelle Kategorie neu aufbauen
 function updateMitarbeiterDatalist() {
-  const datalist = document.getElementById("mitarbeiterListe");
-  datalist.innerHTML = "";
-  mitarbeiterListe.forEach(m => {
-    const option = document.createElement("option");
-    option.value = `${m.name} (${m.nummer})`;
-    datalist.appendChild(option);
-  });
-
-  // Aktuelle Liste sofort aktualisieren
   kategorieWechsel();
 }
+
+// ✅ Sortierung + Anzeige (mit führender 0 bei Männern) pro Kategorie
+function kategorieWechsel() {
+  const kategorie = document.getElementById("kategorieSelect").value;
+  const mitarbeiterInput = document.getElementById("mitarbeiterInput");
+  const mitarbeiterDatalist = document.getElementById("mitarbeiterListe");
+  const idInput = document.getElementById("idInput");
+
+  // Felder leeren
+  mitarbeiterInput.value = "";
+  idInput.value = "";
+
+  if (kategorie === "produktion") {
+    // Mitarbeiterfeld deaktivieren
+    mitarbeiterInput.disabled = true;
+    idInput.disabled = true;
+    mitarbeiterDatalist.innerHTML = "";
+    return;
+  }
+
+  // Mitarbeiterfeld aktivieren
+  mitarbeiterInput.disabled = false;
+  idInput.disabled = false;
+
+  let quelle = [];
+  if (kategorie === "frauen") {
+    quelle = [...frauenMitarbeiterListe];
+  } else if (kategorie === "maenner") {
+    quelle = [...maennerMitarbeiterListe];
+  } else if (kategorie === "zeitarbeiter") {
+    quelle = [];
+  }
+
+  // Zusatzmitarbeiter dieser Kategorie ergänzen
+  const zusatz = mitarbeiterListe.filter(m =>
+    m.kategorie === kategorie &&
+    !frauenMitarbeiterListe.includes(m) &&
+    !maennerMitarbeiterListe.includes(m)
+  );
+  quelle = [...quelle, ...zusatz];
+
+  // 🔢 Sortiert nach Spind (numerisch), dann Name
+  quelle.sort((a, b) => {
+    const na = parseInt(normSpind(a.nummer) || "0", 10);
+    const nb = parseInt(normSpind(b.nummer) || "0", 10);
+    if (na !== nb) return na - nb;
+    return a.name.localeCompare(b.name);
+  });
+
+  // 📝 Datalist neu aufbauen (Anzeige über displaySpind)
+  mitarbeiterDatalist.innerHTML = "";
+  quelle.forEach(m => {
+    const option = document.createElement("option");
+    option.value = `${m.name} (${displaySpind(m)})`;
+    mitarbeiterDatalist.appendChild(option);
+  });
+}
+
+
 
 
 // Initial aufrufen
