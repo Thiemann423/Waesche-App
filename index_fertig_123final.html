@@ -204,10 +204,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 <h3>Neuen Artikel hinzufügen</h3>
 <div id="artikelFormular">
   <input type="text" id="neuerName" placeholder="Artikelname">
-  <input type="text" id="neueGroesse" placeholder="Größe (z. B. M)">
+  <input type="text" id="neueGroesse" placeholder="Größe (z. B. M)">
+  <input type="text" id="neueNummer" placeholder="Artikelnr. (optional)">
   <input type="number" id="neuerBestand" placeholder="Bestand">
   <button onclick="addNeuerArtikel()">➕ Hinzufügen</button>
 </div>
+
 
 <!-- ✅ Bestehender Bestand-Container bleibt so -->
 <div class="bestand-container">
@@ -724,6 +726,7 @@ artikel.sort((a, b) => a.name.localeCompare(b.name));
     const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "38", "39", "40", "41", "42", "43", "44", "45", "46"];
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
+    let artikelStamm = JSON.parse(localStorage.getItem('artikelStamm')) || {};
 
    
 
@@ -845,22 +848,26 @@ div.innerHTML = `
     updateArtikelnummerInput(this);
   });
 }
+function getArtikelNummer(name) {
+  const ausArray = artikel.find(a => a.name === name)?.nummer;
+  if (ausArray) return ausArray;
+  return artikelStamm[name] || "";
+}
 
-    function updateArtikelnummer(selectElement) {
-      const artikelName = selectElement.value;
-      const artikelObj = artikel.find(a => a.name === artikelName);
-      const feldId = selectElement.dataset.artikelfeld;
-      const nummernfeld = document.getElementById(feldId);
-      nummernfeld.value = artikelObj?.nummer || "";
-    }
-
-function updateArtikelnummerInput(inputElement) {
+    function updateArtikelnummerInput(inputElement) {
   const artikelName = inputElement.value;
-  const artikelObj = artikel.find(a => a.name === artikelName);
   const feldId = inputElement.dataset.artikelfeld;
   const nummernfeld = document.getElementById(feldId);
-  nummernfeld.value = artikelObj?.nummer || "";
+  nummernfeld.value = getArtikelNummer(artikelName);
 }
+
+function updateArtikelnummer(selectElement) {
+  const artikelName = selectElement.value;
+  const feldId = selectElement.dataset.artikelfeld;
+  const nummernfeld = document.getElementById(feldId);
+  nummernfeld.value = getArtikelNummer(artikelName);
+}
+
 
     function clearCanvas(id) {
       const canvas = document.getElementById(id);
@@ -1129,13 +1136,27 @@ function updateBestandTabelle() {
 }
 
 function updateArtikelListe() {
-  const artikelOhneDuplikate = artikel.filter((a, index, self) =>
-    a.name && a.name.trim() && index === self.findIndex(b => b.name === a.name)
-  );
+  const names = new Set();
+
+  // aus dem festen Array
+  artikel.forEach(a => {
+    const n = (a.name || "").trim();
+    if (n) names.add(n);
+  });
+
+  // aus deinem Bestand (manuell hinzugefügt)
+  Object.keys(bestand || {}).forEach(n => {
+    n = (n || "").trim();
+    if (n) names.add(n);
+  });
 
   const dl = document.querySelector("#artikelListeGlobal");
-  dl.innerHTML = artikelOhneDuplikate.map(a => `<option value="${a.name}">`).join('');
+  dl.innerHTML = [...names]
+    .sort((a, b) => a.localeCompare(b))
+    .map(n => `<option value="${n}">`)
+    .join("");
 }
+
 
 
 
@@ -1195,6 +1216,13 @@ function addNeuerArtikel() {
   if (!bestand[name]) bestand[name] = {};
   bestand[name][groesse] = bestandWert;
 
+    const nummer = (document.getElementById("neueNummer").value || "").trim();
+  if (nummer) {
+    artikelStamm[name] = nummer;
+    localStorage.setItem("artikelStamm", JSON.stringify(artikelStamm));
+  }
+
+
   localStorage.setItem("bestand", JSON.stringify(bestand));
   updateBestandTabelle();
   updateArtikelListe();
@@ -1202,10 +1230,12 @@ function addNeuerArtikel() {
 
   document.getElementById("neuerName").value = "";
   document.getElementById("neueGroesse").value = "";
+  document.getElementById("neueNummer").value = ""; // 👈 neue Zeile
   document.getElementById("neuerBestand").value = "";
 
   alert("✅ Neuer Artikel hinzugefügt.");
 }
+
 function filterBestandTabelle() {
   const suchbegriff = document.getElementById("bestandSuche").value.toLowerCase();
   const rows = document.querySelectorAll("#bestandTabelle tbody tr");
