@@ -723,10 +723,35 @@ const artikel = [
 
 artikel.sort((a, b) => a.name.localeCompare(b.name));
 
-    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "38", "39", "40", "41", "42", "43", "44", "45", "46"];
+    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"];
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let artikelStamm = JSON.parse(localStorage.getItem('artikelStamm')) || {};
+    
+function normalizeArtikelName(n) {
+  return (n || "")
+    .replace(/\u00A0/g, " ")          // NBSP -> normales Leerzeichen
+    .replace(/\s+/g, " ")             // mehrere Spaces zu einem
+    .replace(/\s*["']\s*auf\s*Ärmel.*$/i, "") // evtl. …" auf Ärmel… abschneiden
+    .trim();
+}
+
+function migrateBestandKeys() {
+  const neu = {};
+  Object.entries(bestand).forEach(([name, sizes]) => {
+    const key = normalizeArtikelName(name);
+    if (!neu[key]) neu[key] = {};
+    Object.entries(sizes).forEach(([gr, qty]) => {
+      const n = parseInt(qty) || 0;
+      neu[key][gr] = (neu[key][gr] || 0) + n; // Mengen zusammenführen
+    });
+  });
+  bestand = neu;
+  localStorage.setItem('bestand', JSON.stringify(bestand));
+  updateBestandTabelle();
+  updateArtikelListe();
+  alert("Bestandsschlüssel bereinigt.");
+}
 
    
 
@@ -917,29 +942,36 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
 
   const ausgabeDetails = [];
 
-  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
-    const artikelInput = div.querySelector(".artikelSuchfeld");
-    const groesse = div.querySelector("select:nth-of-type(1)").value;
-    const inputAnzahl = div.querySelector("input[type='number']");
-    const artikelName = artikelInput.value;
-    const anzahl = parseInt(inputAnzahl.value) || 0;
+ document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+  const artikelInput = div.querySelector(".artikelSuchfeld");
+  const groesse = div.querySelector("select:nth-of-type(1)").value;
+  const inputAnzahl = div.querySelector("input[type='number']");
+  const artikelName = artikelInput.value;
+  const anzahl = parseInt(inputAnzahl.value, 10) || 0;
 
-  if (!bestand[artikelName]) bestand[artikelName] = {};
-if (bestand[artikelName][groesse] === undefined) bestand[artikelName][groesse] = 0;
+  // 👇 Neu: normalisierter Schlüssel verhindert „Altlasten“/Dubletten
+  const nameKey = normalizeArtikelName(artikelName);
+  if (!nameKey) return; // leere Zeile ignorieren
 
-bestand[artikelName][groesse] = Math.max(bestand[artikelName][groesse] - anzahl, 0);
+  if (!bestand[nameKey]) bestand[nameKey] = {};
+  if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
+  // Abziehen, nie unter 0
+  const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
+  bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
 
-    history.push({
-      datum: datum || new Date().toISOString().split('T')[0],
-      mitarbeiter: mitarbeiterName,
-      artikel: artikelName,
-      groesse: groesse,
-      anzahl: anzahl
-    });
-
-    ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+  // sichtbarer Name bleibt wie eingegeben – das ist fürs PDF/Verlauf schöner
+  history.push({
+    datum: datum || new Date().toISOString().split('T')[0],
+    mitarbeiter: mitarbeiterName,
+    artikel: artikelName,
+    groesse: groesse,
+    anzahl: anzahl
   });
+
+  ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+});
+
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
   localStorage.setItem('history', JSON.stringify(history));
@@ -1054,27 +1086,31 @@ function rueckgabeAbschliessen() {
   const rueckgabeDetails = [];
 
   document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
-    const artikelInput = div.querySelector(".artikelSuchfeld");
-    const groesse = div.querySelector("select:nth-of-type(1)").value; // Bei dir ist das erste Select für Größe
-    const inputAnzahl = div.querySelector("input[type='number']");
-    const artikelName = artikelInput.value;
-    const anzahl = parseInt(inputAnzahl.value) || 0;
+  const artikelInput = div.querySelector(".artikelSuchfeld");
+const groesse = div.querySelector("select:nth-of-type(1)").value;
+const inputAnzahl = div.querySelector("input[type='number']");
+const artikelName = artikelInput.value;
+const anzahl = parseInt(inputAnzahl.value, 10) || 0;
 
-    if (!bestand[artikelName]) bestand[artikelName] = {};
-    if (bestand[artikelName][groesse] === undefined) bestand[artikelName][groesse] = 0;
+const nameKey = normalizeArtikelName(artikelName);
+if (!nameKey) return;
 
-    bestand[artikelName][groesse] += anzahl;
+if (!bestand[nameKey]) bestand[nameKey] = {};
+if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
-    history.push({
-      datum: datum || new Date().toISOString().split('T')[0],
-      mitarbeiter: mitarbeiterName,
-      artikel: artikelName,
-      groesse: groesse,
-      anzahl: anzahl,
-      rueckgabe: true
-    });
+bestand[nameKey][groesse] += anzahl;
 
-    rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+history.push({
+  datum: datum || new Date().toISOString().split('T')[0],
+  mitarbeiter: mitarbeiterName,
+  artikel: artikelName,
+  groesse: groesse,
+  anzahl: anzahl,
+  rueckgabe: true
+});
+
+rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+
   });
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
@@ -1162,7 +1198,6 @@ function updateArtikelListe() {
 
 
 
-
 function saveArtikel(button) {
   const row = button.closest("tr");
 
@@ -1170,71 +1205,98 @@ function saveArtikel(button) {
   const groesseInput = row.querySelector(".groesse-input");
   const bestandInput = row.querySelector(".bestand-input");
 
+  // Alte Werte aus den data-Attributen (so wurde die Zeile erstellt)
   const originalName = nameInput.dataset.originalName;
   const alteGroesse = nameInput.dataset.groesse;
 
-  const newName = nameInput.value.trim();
+  // Neue Werte aus dem Formular
+  const newNameRaw = nameInput.value.trim();
   const newGroesse = groesseInput.value.trim();
-  const newBestand = parseInt(bestandInput.value) || 0;
+  const newBestand = parseInt(bestandInput.value, 10) || 0;
 
-  if (!newName) {
+  // Normalisierte Keys, damit keine Altlasten entstehen
+  const originalKey = normalizeArtikelName(originalName);
+  const newKey = normalizeArtikelName(newNameRaw);
+
+  if (!newKey) {
     alert("Artikelname darf nicht leer sein!");
     return;
   }
 
-  // Neuen Eintrag anlegen, wenn nötig
-  if (!bestand[newName]) bestand[newName] = {};
-  bestand[newName][newGroesse] = newBestand;
+  // Ziel-Eintrag anlegen/setzen
+  if (!bestand[newKey]) bestand[newKey] = {};
+  bestand[newKey][newGroesse] = newBestand;
 
-  // Alten Eintrag löschen, wenn sich Name oder Größe geändert hat
-  if (newName !== originalName || newGroesse !== alteGroesse) {
-    delete bestand[originalName][alteGroesse];
-
-    if (Object.keys(bestand[originalName]).length === 0) {
-      delete bestand[originalName];
+  // Alten Eintrag löschen, wenn Name oder Größe geändert wurden
+  if (newKey !== originalKey || newGroesse !== alteGroesse) {
+    if (bestand[originalKey] && bestand[originalKey][alteGroesse] !== undefined) {
+      delete bestand[originalKey][alteGroesse];
+      if (Object.keys(bestand[originalKey]).length === 0) {
+        delete bestand[originalKey];
+      }
     }
   }
 
-  // Speichern
+  // Artikelnummer im Stamm bei Namensänderung "mitnehmen"
+  if (newKey !== originalKey && artikelStamm[originalKey]) {
+    if (!artikelStamm[newKey]) {
+      artikelStamm[newKey] = artikelStamm[originalKey];
+    }
+    delete artikelStamm[originalKey];
+    localStorage.setItem("artikelStamm", JSON.stringify(artikelStamm));
+  }
+
+  // Speichern & UI aktualisieren
   localStorage.setItem('bestand', JSON.stringify(bestand));
   updateBestandTabelle();
   updateArtikelListe();
-  saveDataToOneDrive(); // optional, wenn OneDrive-Speicherung gewünscht
+  if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
+
+  // Die neuen "Original"-Werte zurück in die data-Attribute schreiben
+  nameInput.dataset.originalName = newNameRaw;
+  nameInput.dataset.groesse = newGroesse;
+
   alert("✅ Artikel gespeichert.");
 }
 
+
 function addNeuerArtikel() {
-  const name = document.getElementById("neuerName").value.trim();
+  const nameRaw = document.getElementById("neuerName").value.trim();
+  const name = normalizeArtikelName(nameRaw);                 // 👈 neu
   const groesse = document.getElementById("neueGroesse").value.trim();
-  const bestandWert = parseInt(document.getElementById("neuerBestand").value) || 0;
+  const bestandWert = parseInt(document.getElementById("neuerBestand").value, 10) || 0;
+  const nummer = (document.getElementById("neueNummer").value || "").trim();
 
   if (!name || !groesse) {
     alert("❌ Bitte Name und Größe angeben.");
     return;
   }
 
+  // Bestand setzen (oder anlegen)
   if (!bestand[name]) bestand[name] = {};
-  bestand[name][groesse] = bestandWert;
+  bestand[name][groesse] = bestandWert;                       // (optional unten: addieren statt überschreiben)
 
-    const nummer = (document.getElementById("neueNummer").value || "").trim();
+  // Artikelnr. speichern (nur wenn angegeben)
   if (nummer) {
     artikelStamm[name] = nummer;
     localStorage.setItem("artikelStamm", JSON.stringify(artikelStamm));
   }
 
-
+  // Persistenz & UI
   localStorage.setItem("bestand", JSON.stringify(bestand));
   updateBestandTabelle();
   updateArtikelListe();
-  saveDataToOneDrive(); // optional, falls du das nutzt
+  if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 
+  // Felder leeren
   document.getElementById("neuerName").value = "";
   document.getElementById("neueGroesse").value = "";
-  document.getElementById("neueNummer").value = ""; // 👈 neue Zeile
+  document.getElementById("neueNummer").value = "";
   document.getElementById("neuerBestand").value = "";
 
   alert("✅ Neuer Artikel hinzugefügt.");
 }
+
 
 function filterBestandTabelle() {
   const suchbegriff = document.getElementById("bestandSuche").value.toLowerCase();
@@ -1460,6 +1522,7 @@ function toggleFreieSpindnummern() {
 
 
 window.addEventListener("DOMContentLoaded", () => {
+  migrateBestandKeys();   // ← zuerst bereinigen
   kategorieWechsel();
   updateBestandTabelle();
   updateDashboard();
