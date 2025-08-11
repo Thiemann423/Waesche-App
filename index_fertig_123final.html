@@ -843,41 +843,36 @@ function sucheNachID() {
 
 
 
-  function addArtikel() {
+function addArtikel() {
   const container = document.getElementById("artikelContainer");
   const div = document.createElement("div");
   const artikelId = "artikel_" + Date.now();
 
   div.className = "artikel";
+  div.innerHTML = `
+    <button type="button" class="removeRow" title="Zeile entfernen">✖</button>
 
-div.innerHTML = `
-  <button type="button" class="removeRow" title="Zeile entfernen" onclick="this.closest('.artikel').remove()">✖</button>
+    <label>Artikel:</label>
+    <input list="artikelListeGlobal" class="artikelSuchfeld" data-artikelfeld="${artikelId}">
+    <label>Größe:</label>
+    <select>${groessen.map(g => `<option>${g}</option>`).join('')}</select>
+    <label>Anzahl:</label>
+    <input type="number" min="1" value="1">
+    <label>Artikelnr.:</label>
+    <input type="text" id="${artikelId}" readonly>
+  `;
 
-  <label>Artikel:</label>
-  <input list="artikelListeGlobal" class="artikelSuchfeld" data-artikelfeld="${artikelId}">
-  <label>Größe:</label>
-  <select>${groessen.map(g => `<option>${g}</option>`).join('')}</select>
-  <label>Anzahl:</label>
-  <input type="number" min="1" value="1">
-  <label>Artikelnr.:</label>
-  <input type="text" id="${artikelId}" readonly>
-`;
+  container.appendChild(div);
 
+  // Nummer automatisch aktualisieren
+  const artikelInput = div.querySelector(".artikelSuchfeld");
+  artikelInput.addEventListener("input", () => updateArtikelnummerInput(artikelInput));
 
-container.appendChild(div);
-
-// Nummern automatisch nachführen
-const input = div.querySelector(".artikelSuchfeld");
-input.addEventListener("input", function () {
-  updateArtikelnummerInput(this);
-});
-
-// ❌ Zeile entfernen
-div.querySelector(".removeRow").addEventListener("click", () => {
-  div.remove();
-});
-
+  // Zeile entfernen
+  const removeBtn = div.querySelector(".removeRow");
+  removeBtn.addEventListener("click", () => div.remove());
 }
+
 function getArtikelNummer(name) {
   const key = normalizeArtikelName(name);
   const ausArray = artikel.find(a => normalizeArtikelName(a.name) === key)?.nummer;
@@ -949,25 +944,24 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
 
   const ausgabeDetails = [];
 
- document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
   const artikelInput = div.querySelector(".artikelSuchfeld");
   const groesse = div.querySelector("select:nth-of-type(1)").value;
   const inputAnzahl = div.querySelector("input[type='number']");
   const artikelName = artikelInput.value;
   const anzahl = parseInt(inputAnzahl.value, 10) || 0;
 
-  // 👇 Neu: normalisierter Schlüssel verhindert „Altlasten“/Dubletten
   const nameKey = normalizeArtikelName(artikelName);
-  if (!nameKey) return; // leere Zeile ignorieren
+
+  // ⛔️ NEU: leere Artikel ODER Anzahl <= 0 überspringen
+  if (!nameKey || anzahl <= 0) return;
 
   if (!bestand[nameKey]) bestand[nameKey] = {};
   if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
-  // Abziehen, nie unter 0
   const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
   bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
 
-  // sichtbarer Name bleibt wie eingegeben – das ist fürs PDF/Verlauf schöner
   history.push({
     datum: datum || new Date().toISOString().split('T')[0],
     mitarbeiter: mitarbeiterName,
@@ -975,6 +969,9 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
     groesse: groesse,
     anzahl: anzahl
   });
+
+  ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+});
 
   ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
 });
@@ -1092,33 +1089,35 @@ function rueckgabeAbschliessen() {
 
   const rueckgabeDetails = [];
 
-  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
   const artikelInput = div.querySelector(".artikelSuchfeld");
-const groesse = div.querySelector("select:nth-of-type(1)").value;
-const inputAnzahl = div.querySelector("input[type='number']");
-const artikelName = artikelInput.value;
-const anzahl = parseInt(inputAnzahl.value, 10) || 0;
+  const groesse = div.querySelector("select:nth-of-type(1)").value;
+  const inputAnzahl = div.querySelector("input[type='number']");
+  const artikelName = artikelInput.value;
+  const anzahl = parseInt(inputAnzahl.value, 10) || 0;
 
-const nameKey = normalizeArtikelName(artikelName);
-if (!nameKey) return;
+  const nameKey = normalizeArtikelName(artikelName);
 
-if (!bestand[nameKey]) bestand[nameKey] = {};
-if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
+  // ⛔️ NEU: leere Artikel ODER Anzahl <= 0 überspringen
+  if (!nameKey || anzahl <= 0) return;
 
-bestand[nameKey][groesse] += anzahl;
+  if (!bestand[nameKey]) bestand[nameKey] = {};
+  if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
-history.push({
-  datum: datum || new Date().toISOString().split('T')[0],
-  mitarbeiter: mitarbeiterName,
-  artikel: artikelName,
-  groesse: groesse,
-  anzahl: anzahl,
-  rueckgabe: true
+  bestand[nameKey][groesse] += anzahl;
+
+  history.push({
+    datum: datum || new Date().toISOString().split('T')[0],
+    mitarbeiter: mitarbeiterName,
+    artikel: artikelName,
+    groesse: groesse,
+    anzahl: anzahl,
+    rueckgabe: true
+  });
+
+  rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
 });
 
-rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
-
-  });
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
   localStorage.setItem('history', JSON.stringify(history));
