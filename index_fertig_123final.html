@@ -874,10 +874,12 @@ div.innerHTML = `
   });
 }
 function getArtikelNummer(name) {
-  const ausArray = artikel.find(a => a.name === name)?.nummer;
+  const key = normalizeArtikelName(name);
+  const ausArray = artikel.find(a => normalizeArtikelName(a.name) === key)?.nummer;
   if (ausArray) return ausArray;
-  return artikelStamm[name] || "";
+  return artikelStamm[key] || artikelStamm[name] || "";
 }
+
 
     function updateArtikelnummerInput(inputElement) {
   const artikelName = inputElement.value;
@@ -1315,34 +1317,28 @@ function filterBestandTabelle() {
 
 function deleteArtikel(button) {
   const row = button.closest("tr");
-  const name = row.querySelector(".name-input")?.value.trim();
+  const rawName = row.querySelector(".name-input")?.value.trim();
   const groesse = row.querySelector(".groesse-input")?.value.trim();
+  const name = normalizeArtikelName(rawName);
 
   if (!name || !groesse) {
     alert("❌ Artikelname oder Größe fehlen.");
     return;
   }
-
-  if (!confirm(`❌ Wirklich löschen: ${name} (${groesse})?`)) return;
+  if (!confirm(`❌ Wirklich löschen: ${rawName} (${groesse})?`)) return;
 
   if (bestand[name] && bestand[name][groesse] !== undefined) {
     delete bestand[name][groesse];
-
-    // Falls keine Größen mehr übrig sind, Namen komplett entfernen
-    if (Object.keys(bestand[name]).length === 0) {
-      delete bestand[name];
-    }
-
+    if (Object.keys(bestand[name]).length === 0) delete bestand[name];
     localStorage.setItem("bestand", JSON.stringify(bestand));
-    updateBestandTabelle();
-    updateArtikelListe();
-    saveDataToOneDrive();
-
-    alert(`✅ ${name} (${groesse}) wurde gelöscht.`);
+    updateBestandTabelle(); updateArtikelListe();
+    if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
+    alert(`✅ ${rawName} (${groesse}) wurde gelöscht.`);
   } else {
     alert("❌ Artikel nicht gefunden.");
   }
 }
+
 
 
 
