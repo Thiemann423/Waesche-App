@@ -9,86 +9,97 @@
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
   <!-- ✅ Jetzt ist msal verfügbar -->
-  <script>
-
+<script>
   const msalConfig = {
     auth: {
       clientId: "eb47dcba-4ea2-4a3a-9af1-20a017d605e9",
       authority: "https://login.microsoftonline.com/f54f53bb-d0ff-4b78-bcf4-4aeeeb924428",
       redirectUri: "https://thiemann423.github.io/Waesche-App/index_fertig_123final.html"
-    }
+    },
+    cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
   };
 
-  // ⬇️ IDs EINMALIG eintragen (dein OneDrive + Ordner "WaescheApp")
-  const DRIVE_ID  = "b!DEINE_DRIVE_ID";
-  const FOLDER_ID = "01DEIN_ORDNER_ID";
-
-const scopes = ["Files.ReadWrite.All", "offline_access", "openid", "profile"];
-
+  const scopes = ["Files.ReadWrite.All", "offline_access", "openid", "profile"];
   const msalInstance = new msal.PublicClientApplication(msalConfig);
-    
-// Deinen Freigabe-Link zum Ordner "WaescheApp" – ohne "?e=..."
-const SHARE_URL = "https://petrifeinkost-my.sharepoint.com/:f:/g/personal/merten_thiemann_petri-feinkost_de/Ensf79Quc4JMl3Sd5k1LKSEBKBLm9Z9frRvyT-GIazBAKA";
-const SHARE_KEY = 'WAESCHE_SHARE_URL';
-if (localStorage.getItem(SHARE_KEY) !== SHARE_URL) {
-  localStorage.removeItem('WAESCHE_DRIVE_ID');
-  localStorage.removeItem('WAESCHE_FOLDER_ID');
-  localStorage.setItem(SHARE_KEY, SHARE_URL);
-}
 
-
-
-function b64u(s){ return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
-
-async function ensureTargetIds() {
-  let driveId  = localStorage.getItem("WAESCHE_DRIVE_ID");
-  let folderId = localStorage.getItem("WAESCHE_FOLDER_ID");
-  if (driveId && folderId) return { driveId, folderId };
-
-  const accessToken = await getAccessToken();
-
-  const token = "u!" + b64u(SHARE_URL);
-  const r = await fetch(
-    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) +
-    "/driveItem?$select=id,parentReference",
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!r.ok) throw new Error(await r.text());
-  const item = await r.json();
-
-  driveId  = item.parentReference.driveId;
-  folderId = item.id;
-
-  localStorage.setItem("WAESCHE_DRIVE_ID", driveId);
-  localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
-  return { driveId, folderId };
-}
-
-
-
-  
-
-  // Holt (still) ein Token oder zeigt LoginPopup – ohne auf einen bestimmten User zu bestehen
-  async function getAccessToken() {
-    const acc = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
-    if (acc) {
-      try {
-        const t = await msalInstance.acquireTokenSilent({ account: acc, scopes });
-        return t.accessToken;
-      } catch {}
-    }
-    const login = await msalInstance.loginPopup({ scopes });
-    msalInstance.setActiveAccount(login.account);
-    const t = await msalInstance.acquireTokenSilent({ account: login.account, scopes });
-    return t.accessToken;
+  // Freigabe-Link (ohne ?e=...)
+  const SHARE_URL = "https://petrifeinkost-my.sharepoint.com/:f:/g/personal/merten_thiemann_petri-feinkost_de/Ensf79Quc4JMl3Sd5k1LKSEBKBLm9Z9frRvyT-GIazBAKA";
+  const SHARE_KEY = "WAESCHE_SHARE_URL";
+  if (localStorage.getItem(SHARE_KEY) !== SHARE_URL) {
+    localStorage.removeItem("WAESCHE_DRIVE_ID");
+    localStorage.removeItem("WAESCHE_FOLDER_ID");
+    localStorage.setItem(SHARE_KEY, SHARE_URL);
   }
 
-  // Beim Laden nur sicherstellen, dass jemand eingeloggt ist
+  function b64u(s){ return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+
+  async function ensureTargetIds() {
+    let driveId  = localStorage.getItem("WAESCHE_DRIVE_ID");
+    let folderId = localStorage.getItem("WAESCHE_FOLDER_ID");
+    if (driveId && folderId) return { driveId, folderId };
+
+    const accessToken = await getAccessToken();
+    const token = "u!" + b64u(SHARE_URL);
+    const r = await fetch(
+      "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) +
+      "/driveItem?$select=id,parentReference",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!r.ok) throw new Error(await r.text());
+    const item = await r.json();
+
+    driveId  = item.parentReference.driveId;
+    folderId = item.id;
+
+    localStorage.setItem("WAESCHE_DRIVE_ID", driveId);
+    localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
+    return { driveId, folderId };
+  }
+
+  async function getAccessToken() {
+    const request = { scopes };
+    let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+
+    if (account) {
+      try {
+        const t = await msalInstance.acquireTokenSilent({ ...request, account });
+        return t.accessToken;
+      } catch (e) {
+        console.warn("Silent token failed:", e);
+      }
+    }
+
+    try {
+      const login = await msalInstance.loginPopup(request);
+      msalInstance.setActiveAccount(login.account);
+      const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
+      return t.accessToken;
+    } catch (e) {
+      if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
+        msalInstance.loginRedirect(request); // Fallback wenn Popups blockiert sind
+        return;
+      }
+      throw e;
+    }
+  }
+
+  // Beim Laden: Redirect-Ergebnis verarbeiten + anmelden
   window.addEventListener("DOMContentLoaded", async () => {
-    try { await getAccessToken(); console.log("✅ angemeldet"); }
-    catch (e) { console.error("❌ Login fehlgeschlagen", e); alert("❌ Anmeldung nicht möglich."); }
+    try {
+      const redirectResult = await msalInstance.handleRedirectPromise?.();
+      if (redirectResult?.account) {
+        msalInstance.setActiveAccount(redirectResult.account);
+      }
+      await getAccessToken();
+      console.log("✅ angemeldet");
+    } catch (e) {
+      console.error("❌ Login fehlgeschlagen", e);
+      alert(`❌ Anmeldung nicht möglich.\n${e.errorCode || e.name || ""}\n${e.errorMessage || e.message || ""}`);
+    }
   });
 </script>
+
+
 
 
   <!-- Dein CSS -->
