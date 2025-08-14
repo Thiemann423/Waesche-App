@@ -814,7 +814,9 @@ function migrateBestandKeys() {
   localStorage.setItem('bestand', JSON.stringify(bestand));
   updateBestandTabelle();
   updateArtikelListe();
-  alert("Bestandsschlüssel bereinigt.");
+//  alert("Bestandsschlüssel bereinigt.");
+    if (changed) console.log("Bestandsschlüssel bereinigt.");
+
 }
 
    
