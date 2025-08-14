@@ -966,34 +966,47 @@ function updateArtikelnummer(selectElement) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+// === iOS-Erkennung + PDF->Blob Helper ===
+function isIOS() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  return /iPad|iPhone|iPod/.test(ua) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+function pdfToBlob(doc) {
+  try { return doc.output("blob"); }
+  catch { return new Blob([doc.output("arraybuffer")], { type: "application/pdf" }); }
+}
 
 
 
 async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
   try {
-    // Einheitlich Token holen
     const accessToken = await getAccessToken();
-    // Ziel-Ordner aus deinem Freigabelink ermitteln/cachen
     const { driveId, folderId } = await ensureTargetIds();
 
     const uploadUrl =
-      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/${encodeURIComponent(dateiname)}:/content`;
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/${encodeURIComponent(dateiname)}:/content?@microsoft.graph.conflictBehavior=rename`;
 
     const response = await fetch(uploadUrl, {
       method: "PUT",
-      headers: { "Authorization": `Bearer ${accessToken}` },
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/pdf"
+      },
       body: fileBlob
     });
 
-    if (response.ok) {
-      alert("✅ Upload erfolgreich!");
-    } else {
-      console.error(await response.text());
-      alert("❌ Upload fehlgeschlagen!");
+    if (!response.ok) {
+      const msg = await response.text().catch(() => "");
+      console.error("Upload error:", msg);
+      alert("❌ Upload fehlgeschlagen.");
+      return false;
     }
+    return true;
   } catch (error) {
-    console.error("❌ Login oder Upload fehlgeschlagen", error);
+    console.error("❌ Login/Upload fehlgeschlagen", error);
     alert("❌ Fehler beim Login oder Upload");
+    return false;
   }
 }
 
@@ -1068,9 +1081,8 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  // 📄 Für die Anzeige im PDF
+  // Anzeige
   const empfaengerText = (kategorie === "produktion") ? "Abteilung: " + abteilung : mitarbeiter;
-  // 🧾 Für den Dateinamen
   const empfaengerKey  = (kategorie === "produktion") ? `Abteilung_${abteilung}` : mitarbeiter;
   const dateStr = datum || new Date().toISOString().split('T')[0];
 
@@ -1098,16 +1110,24 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   doc.text("Unterschrift Ausgabe:", 10, 145 + details.length * 10);
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
-  // ✅ HIER einfügen (ersetzt deine alten save/upload-Zeilen)
-  const rawName   = `Ausgabe_${empfaengerKey}_${dateStr}.pdf`;
-  const dateiname = safeFileName(rawName);
+  // ---------- hier der wichtige Teil ----------
+  const fileName = safeFileName(`Ausgabe_${empfaengerKey}_${dateStr}.pdf`);
 
- doc.save(dateiname);
-const pdfBlob = doc.output("blob");
-await loginAndUploadPDF(pdfBlob, dateiname);
+  // Safari/iOS mag manchmal output("blob") nicht → Fallback nutzen
+  const pdfBlob = pdfToBlob(doc);  // nutzt die Hilfsfunktion
 
+  // 1) Immer erst in OneDrive hochladen
+  const ok = await loginAndUploadPDF(pdfBlob, fileName);
+  if (ok === false) throw new Error("Upload fehlgeschlagen");
 
+  // 2) Nur auf Nicht-iOS zusätzlich lokal speichern
+  if (!isIOS()) {
+    doc.save(fileName);
+  } else {
+    console.log("iOS erkannt – kein lokaler Download, nur OneDrive-Upload.");
+  }
 }
+
 
 
 
@@ -1146,14 +1166,25 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   doc.text("Unterschrift Rücknahme:", 10, 145 + details.length * 10);
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
-  // ✅ HIER einfügen (ersetzt deine alten save/upload-Zeilen)
-  const rawName   = `Rueckgabe_${empfaengerKey}_${dateStr}.pdf`;
-  const dateiname = safeFileName(rawName);
+  // Dateiname
+  const rawName  = `Rueckgabe_${empfaengerKey}_${dateStr}.pdf`;
+  const fileName = safeFileName(rawName);
 
-  doc.save(dateiname);
-  const pdfBlob = doc.output("blob");
-  await loginAndUploadPDF(pdfBlob, dateiname);
+  // 1) Blob erstellen (iOS-sicher)
+  const pdfBlob = pdfToBlob(doc);
+
+  // 2) Erst OneDrive-Upload
+  const ok = await loginAndUploadPDF(pdfBlob, fileName);
+  if (!ok) throw new Error("Upload fehlgeschlagen");
+
+  // 3) Nur auf Nicht-iOS zusätzlich lokal speichern
+  if (!isIOS()) {
+    doc.save(fileName);
+  }
+
+  return true;
 }
+
 
 
 
@@ -1200,17 +1231,23 @@ async function rueckgabeAbschliessen() {
   updateBestandTabelle();
   updateDashboard();
 
-  // WICHTIG: auf Upload warten
-  await generateRueckgabePDF(mitarbeiterName, datum, rueckgabeDetails, bemerkung, abteilung, kategorie);
+  try {
+    await generateRueckgabePDF(mitarbeiterName, datum, rueckgabeDetails, bemerkung, abteilung, kategorie);
+  } catch (e) {
+    console.error(e);
+    alert("❌ PDF/Upload fehlgeschlagen.");
+    return; // Kein Reset/Reload bei Fehler
+  }
 
   document.getElementById("artikelContainer").innerHTML = "";
   document.getElementById("bemerkung").value = "";
   clearCanvas('sigMitarbeiter');
   clearCanvas('sigAusgabe');
 
-  alert("Rückgabe abgeschlossen, Bestand aktualisiert und PDF gespeichert.");
+  alert("✅ Rückgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
   location.reload();
 }
+
 
 
 
