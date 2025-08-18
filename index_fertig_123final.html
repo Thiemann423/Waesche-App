@@ -270,6 +270,9 @@
     </thead>
     <tbody></tbody>
   </table>
+<div style="margin-top:8px">
+  <button onclick="saveBestand()">Alle Änderungen speichern</button>
+</div>
 </div>
 
 
@@ -1267,43 +1270,125 @@ async function rueckgabeAbschliessen() {
 
 
 
-    function saveBestand() {
-      document.querySelectorAll('.bestand-input').forEach(input => {
-        const artikelName = input.dataset.artikel;
-        const groesse = input.dataset.groesse;
-        const wert = parseInt(input.value) || 0;
+function saveBestand() {
+  const neu = {};
+  const seenOriginalKeys = new Set();
 
-        if (!bestand[artikelName]) bestand[artikelName] = {};
-        bestand[artikelName][groesse] = wert;
-      });
-      localStorage.setItem('bestand', JSON.stringify(bestand));
-      updateBestandTabelle();
-      alert("Bestand gespeichert.");
+  document.querySelectorAll("#bestandTabelle tbody tr").forEach(row => {
+    const nameInput    = row.querySelector(".name-input");
+    const groesseInput = row.querySelector(".groesse-input");
+    const qtyInput     = row.querySelector(".bestand-input");
+    if (!nameInput || !groesseInput || !qtyInput) return;
+
+    const newNameRaw = (nameInput.value || "").trim();
+    const newKey     = normalizeArtikelName(newNameRaw);
+    const size       = (groesseInput.value || "").trim();
+    let qty          = parseInt(qtyInput.value, 10);
+    if (isNaN(qty)) qty = 0;
+    if (qty < 0) qty = 0;                  // keine negativen Bestände
+    if (!newKey || !size) return;
+
+    if (!neu[newKey]) neu[newKey] = {};
+    neu[newKey][size] = (neu[newKey][size] || 0) + qty;
+
+    // Artikelnr. beim Umbenennen mitnehmen
+    const origKey = normalizeArtikelName(nameInput.dataset.originalName || newNameRaw);
+    if (origKey && artikelStamm[origKey] && !artikelStamm[newKey]) {
+      artikelStamm[newKey] = artikelStamm[origKey];
     }
+    if (origKey) seenOriginalKeys.add(origKey);
+  });
+
+  // Einträge mit Menge 0 entfernen
+  Object.keys(neu).forEach(name => {
+    Object.keys(neu[name]).forEach(gr => {
+      if ((parseInt(neu[name][gr], 10) || 0) <= 0) delete neu[name][gr];
+    });
+    if (Object.keys(neu[name]).length === 0) delete neu[name];
+  });
+
+  // Alte artikelStamm-Keys aufräumen, wenn Name komplett verschwunden ist
+  seenOriginalKeys.forEach(orig => {
+    if (artikelStamm[orig] && !neu[orig]) delete artikelStamm[orig];
+  });
+
+  bestand = neu;
+  localStorage.setItem("bestand", JSON.stringify(bestand));
+  localStorage.setItem("artikelStamm", JSON.stringify(artikelStamm));
+
+  updateBestandTabelle();
+  updateArtikelListe();
+  if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
+
+  alert("✅ Alle Änderungen gespeichert.");
+}
+
+
 
 function updateBestandTabelle() {
   const tbody = document.querySelector("#bestandTabelle tbody");
   tbody.innerHTML = "";
 
-  Object.keys(bestand).forEach(name => {
-    Object.keys(bestand[name]).forEach(groesse => {
-      const row = document.createElement("tr");
+  const names = Object.keys(bestand).sort((a, b) => a.localeCompare(b, "de"));
+  names.forEach(name => {
+    const sizes = Object.keys(bestand[name]).sort((a, b) =>
+      a.localeCompare(b, "de", { numeric: true, sensitivity: "base" })
+    );
 
-      row.innerHTML = `
-        <td><input type="text" value="${name}" data-original-name="${name}" data-groesse="${groesse}" class="name-input"></td>
-       <td><input type="text" value="${groesse}" class="groesse-input"></td>
-        <td><input type="number" value="${bestand[name][groesse]}" class="bestand-input"></td>
-        <td>
-          <button onclick="saveArtikel(this)">Speichern</button>
-         <button onclick="deleteArtikel(this)">Löschen</button>
+    sizes.forEach(groesse => {
+      const tr = document.createElement("tr");
 
-        </td>
-      `;
+      // Spalte: Artikelname
+      const tdName = document.createElement("td");
+      const inpName = document.createElement("input");
+      inpName.type = "text";
+      inpName.className = "name-input";
+      inpName.value = name;
+      inpName.dataset.originalName = name; // für saveArtikel()
+      inpName.dataset.groesse = groesse;   // für saveArtikel()
+      tdName.appendChild(inpName);
 
-      tbody.appendChild(row);
+      // Spalte: Größe
+      const tdSize = document.createElement("td");
+      const inpSize = document.createElement("input");
+      inpSize.type = "text";
+      inpSize.className = "groesse-input";
+      inpSize.value = groesse;
+      tdSize.appendChild(inpSize);
+
+      // Spalte: Bestand
+      const tdQty = document.createElement("td");
+      const inpQty = document.createElement("input");
+      inpQty.type = "number";
+      inpQty.className = "bestand-input";
+      inpQty.min = "0";
+      inpQty.step = "1";
+      inpQty.value = parseInt(bestand[name][groesse], 10) || 0;
+      tdQty.appendChild(inpQty);
+
+      // Spalte: Aktionen
+      const tdActions = document.createElement("td");
+      const btnSave = document.createElement("button");
+      btnSave.textContent = "Speichern";
+      btnSave.addEventListener("click", () => saveArtikel(btnSave));
+
+      const btnDel = document.createElement("button");
+      btnDel.textContent = "Löschen";
+      btnDel.addEventListener("click", () => deleteArtikel(btnDel));
+
+      tdActions.appendChild(btnSave);
+      tdActions.appendChild(btnDel);
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdSize);
+      tr.appendChild(tdQty);
+      tr.appendChild(tdActions);
+
+      tbody.appendChild(tr);
     });
   });
 }
+
 
 function updateArtikelListe() {
   const names = new Set();
