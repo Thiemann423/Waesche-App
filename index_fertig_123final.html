@@ -255,25 +255,28 @@
 </div>
 
 
-<!-- ✅ Bestehender Bestand-Container bleibt so -->
 <div class="bestand-container">
   <h3>Aktueller Bestand</h3>
 
-  <!-- 🔍 Suchfeld einfügen -->
   <label>Suche:</label>
   <input type="text" id="bestandSuche" placeholder="Artikel oder Größe..." oninput="filterBestandTabelle()">
 
-  <!-- ✅ Tabelle bleibt wie sie ist -->
+  <!-- Button nach oben gezogen -->
+  <div class="bestand-actions" style="margin:8px 0 0">
+    <button id="saveAllBestandBtn" onclick="saveBestand()">Alle Änderungen speichern</button>
+  </div>
+
   <table id="bestandTabelle">
     <thead>
-      <tr><th>Artikel</th><th>Größe</th><th>Bestand</th></tr>
+      <tr><th>Artikel</th><th>Größe</th><th>Bestand</th><th>Aktionen</th></tr>
     </thead>
     <tbody></tbody>
   </table>
-<div style="margin-top:8px">
-  <button onclick="saveBestand()">Alle Änderungen speichern</button>
-</div>
-</div>
+
+  <!-- (Optional) zweiter Button auch unten lassen -->
+  <!--
+  <div
+
 
 
 
