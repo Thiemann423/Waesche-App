@@ -316,8 +316,9 @@
 <input type="date" id="neuerStart">
 
 
-<label>Spindnummer:</label>
-<input type="text" id="neuerSpind" placeholder="z. B. 045 (Männer) oder 45 (Frauen)">
+<label>Spindnummer (optional):</label>
+<input type="text" id="neuerSpind" placeholder="z. B. 045 (Männer) – leer lassen, wenn keiner">
+
 
 
 <label>Kategorie:</label>
@@ -780,7 +781,7 @@ const artikel = [
 
 artikel.sort((a, b) => a.name.localeCompare(b.name));
 
-    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL", "XXXXXXL", "28", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "52" , "54", "56", "58", "60", "62", "64", "66", "98", "104", "37/38", "39/40", "41/42","43/44","44/46", "45/46", "50/52", "52/54", "54/56", "58/60", "62/64"];
+    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL", "XXXXXXL","7", "8", "9", "10", "11", "28", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "52" , "54", "56", "58", "60", "62", "64", "66", "98", "104", "37/38", "39/40", "41/42","43/44","44/46", "45/46", "50/52", "52/54", "54/56", "58/60", "62/64"];
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let artikelStamm = JSON.parse(localStorage.getItem('artikelStamm')) || {};
@@ -801,6 +802,8 @@ function normalizeArtikelName(n) {
 
 
 function migrateBestandKeys() {
+  const alt = JSON.stringify(bestand);
+
   const neu = {};
   Object.entries(bestand).forEach(([name, sizes]) => {
     const key = normalizeArtikelName(name);
@@ -810,14 +813,18 @@ function migrateBestandKeys() {
       neu[key][gr] = (neu[key][gr] || 0) + n; // Mengen zusammenführen
     });
   });
+
+  const neuStr = JSON.stringify(neu);
+  const changed = alt !== neuStr;
+
   bestand = neu;
   localStorage.setItem('bestand', JSON.stringify(bestand));
   updateBestandTabelle();
   updateArtikelListe();
-//  alert("Bestandsschlüssel bereinigt.");
-    if (changed) console.log("Bestandsschlüssel bereinigt.");
 
+  if (changed) console.log("Bestandsschlüssel bereinigt.");
 }
+
 
    
 
@@ -902,8 +909,14 @@ function sucheNachID() {
   const kategorie = document.getElementById("kategorieSelect").value;
   const quelle = mitarbeiterListe.filter(m => m.kategorie === kategorie);
   const eintrag = quelle.find(m => normSpind(m.nummer) === normSpind(id));
-  document.getElementById("mitarbeiterInput").value = eintrag ? `${eintrag.name} (${displaySpind(eintrag)})` : "";
+const feld = document.getElementById("mitarbeiterInput");
+if (eintrag) {
+  const sp = displaySpind(eintrag);
+  feld.value = sp ? `${eintrag.name} (${sp})` : eintrag.name;
+} else {
+  feld.value = "";
 }
+} 
 
 
 
@@ -1621,44 +1634,61 @@ function addMitarbeiter() {
   const nameInput = document.getElementById("neuerMitarbeiterName");
   const spindInput = document.getElementById("neuerSpind");
   const kategorieInput = document.getElementById("neueKategorie");
-  const startInput = document.getElementById("neuerStart"); // ✅ NEU
+  const startInput = document.getElementById("neuerStart");
 
   if (!nameInput || !spindInput || !kategorieInput || !startInput) {
     alert("❌ Eingabefelder nicht gefunden!");
     return;
   }
 
-  let name = nameInput.value.trim();
-  let spind = spindInput.value.trim().replace(/\D/g, '');
+  const name = (nameInput.value || "").trim();
   const kategorie = kategorieInput.value;
+  let spind = (spindInput.value || "").trim();
 
-  if (!name || !spind) {
-    console.log("❌ Name oder Spind leer:", { name, spind });
-    alert("❌ Bitte Name und Spindnummer eingeben!");
+  // Name ist Pflicht, Spind darf leer sein
+  if (!name) {
+    alert("❌ Bitte Name eingeben!");
     return;
   }
 
-  // statt: if (kategorie === "maenner" && spind.length === 2) { spind = "0" + spind; }
-if (kategorie === "maenner" && !/^0/.test(spind)) {
-  spind = "0" + spind;        // Männer immer mit führender 0 speichern
-}
+  // Spind normalisieren (nur Ziffern), darf leer bleiben
+  spind = spind ? spind.replace(/\D/g, "") : "";
 
-
-  if (mitarbeiterListe.some(m => m.name === name && m.nummer === spind)) {
-    alert("❌ Dieser Mitarbeiter existiert bereits!");
-    return;
+  // Männer: führende 0 nur setzen, wenn überhaupt eine Spind angegeben ist
+  if (kategorie === "maenner" && spind) {
+    if (!/^0/.test(spind)) spind = "0" + spind;
   }
 
-  // ✅ Startdatum in Mitarbeiterobjekt einfügen
+  // Duplikate prüfen
+  if (spind) {
+    // Spind darf in dieser Kategorie nicht schon vergeben sein
+    if (mitarbeiterListe.some(m => (m.kategorie === kategorie) && normSpind(m.nummer) === normSpind(spind))) {
+      alert("❌ Diese Spindnummer ist in dieser Kategorie bereits vergeben.");
+      return;
+    }
+    // Exakte Dopplung (Name+Spind+Kategorie) verhindern
+    if (mitarbeiterListe.some(m => m.kategorie === kategorie && m.name === name && (m.nummer || "") === spind)) {
+      alert("❌ Dieser Mitarbeiter existiert bereits.");
+      return;
+    }
+  } else {
+    // Ohne Spind: gleicher Name ohne Spind in gleicher Kategorie verhindern
+    if (mitarbeiterListe.some(m => m.kategorie === kategorie && m.name === name && !m.nummer)) {
+      alert("❌ Dieser Mitarbeiter (ohne Spind) existiert bereits.");
+      return;
+    }
+  }
+
+  // Speichern (nummer darf leer sein)
   mitarbeiterListe.push({ name, nummer: spind, kategorie, start: startInput.value });
 
   const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
     !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
     !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
   );
-
   localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
 
+  // Gesamtliste sauber neu zusammensetzen
   mitarbeiterListe.length = 0;
   mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...zusatzMitarbeiter);
 
@@ -1668,14 +1698,15 @@ if (kategorie === "maenner" && !/^0/.test(spind)) {
   zeigeFreieSpindnummern();
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 
-  // ✅ Felder zurücksetzen
+  // Felder zurücksetzen
   nameInput.value = "";
   spindInput.value = "";
   kategorieInput.value = "frauen";
-  startInput.value = ""; // ✅ neu hinzugefügt
+  startInput.value = "";
 
   alert("✅ Mitarbeiter erfolgreich hinzugefügt.");
 }
+
 
 // ✅ DOMContentLoaded bleibt für andere Funktionen
 document.addEventListener("DOMContentLoaded", function () {
@@ -1772,12 +1803,19 @@ function normSpind(s) {
   return d ? String(parseInt(d, 10)) : "";
 }
 function displaySpind(m) {
-  const d = String(m.nummer || "").replace(/\D/g, "");
-  if (m.kategorie === "maenner") {
-    return String(m.nummer || "").startsWith("0") ? String(m.nummer) : "0" + d;
+  const raw = String(m?.nummer ?? "").trim();
+  if (!raw) return "";                         // keine Spind hinterlegt
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+
+  if ((m.kategorie || "") === "maenner") {
+    // Wenn schon mit 0 gespeichert, so lassen – sonst 0 voranstellen
+    return raw.startsWith("0") ? raw : "0" + digits;
   }
-  return d;
+  // Frauen/Zeitarbeiter: nur Ziffern anzeigen
+  return digits;
 }
+
 
 function renderMitarbeiterTabelle() {
   const tbody = document.querySelector("#mitarbeiterTabelle tbody");
@@ -1806,7 +1844,8 @@ function renderMitarbeiterTabelle() {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${m.name}</td>
-      <td>${displaySpind(m)}</td>
+     <td>${displaySpind(m) || "-"}</td>
+
       <td>${m.kategorie || '-'}</td>
       <td><button onclick="deleteMitarbeiter(${idx})">Löschen</button></td>
     `;
@@ -1991,7 +2030,9 @@ function kategorieWechsel() {
   mitarbeiterDatalist.innerHTML = "";
   quelle.forEach(m => {
     const option = document.createElement("option");
-    option.value = `${m.name} (${displaySpind(m)})`;
+   const sp = displaySpind(m);
+option.value = sp ? `${m.name} (${sp})` : m.name;
+
     mitarbeiterDatalist.appendChild(option);
   });
 }
