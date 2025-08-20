@@ -152,6 +152,9 @@
     line-height: 1;
     cursor: pointer;
   }
+  /* schmale Eingabe beim Spind-Editieren in der Tabelle */
+#mitarbeiterTabelle .edit-spind { max-width: 7em; }
+
 </style>
 
 
@@ -693,8 +696,18 @@ frauenMitarbeiterListe.forEach(m => m.kategorie = "frauen");
 maennerMitarbeiterListe.forEach(m => m.kategorie = "maenner");
 
 // Vom Storage laden (nur eigene hinzugefügte)
-const gespeicherteZusatzMitarbeiter = JSON.parse(localStorage.getItem('mitarbeiterListe')) || [];
-const mitarbeiterListe = [...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...gespeicherteZusatzMitarbeiter];
+// NEU: eine einzige Master-Liste
+const MASTER_KEY = 'mitarbeiterMaster';
+let mitarbeiterListe = JSON.parse(localStorage.getItem(MASTER_KEY));
+
+if (!mitarbeiterListe) {
+  // einmalig mit den hart codierten Listen befüllen
+  mitarbeiterListe = [
+    ...frauenMitarbeiterListe.map(m => ({ ...m })),
+    ...maennerMitarbeiterListe.map(m => ({ ...m }))
+  ];
+  localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+}
 
 
 
@@ -1716,7 +1729,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
 
 
-// ✅ Funktion ist global verfügbar
 function addMitarbeiter() {
   const nameInput = document.getElementById("neuerMitarbeiterName");
   const spindInput = document.getElementById("neuerSpind");
@@ -1749,12 +1761,15 @@ function addMitarbeiter() {
   // Duplikate prüfen
   if (spind) {
     // Spind darf in dieser Kategorie nicht schon vergeben sein
-    if (mitarbeiterListe.some(m => (m.kategorie === kategorie) && normSpind(m.nummer) === normSpind(spind))) {
+    if (mitarbeiterListe.some(m => m.kategorie === kategorie &&
+                                   normSpind(m.nummer) === normSpind(spind))) {
       alert("❌ Diese Spindnummer ist in dieser Kategorie bereits vergeben.");
       return;
     }
     // Exakte Dopplung (Name+Spind+Kategorie) verhindern
-    if (mitarbeiterListe.some(m => m.kategorie === kategorie && m.name === name && (m.nummer || "") === spind)) {
+    if (mitarbeiterListe.some(m => m.kategorie === kategorie &&
+                                   m.name === name &&
+                                   (m.nummer || "") === spind)) {
       alert("❌ Dieser Mitarbeiter existiert bereits.");
       return;
     }
@@ -1766,19 +1781,11 @@ function addMitarbeiter() {
     }
   }
 
-  // Speichern (nummer darf leer sein)
+  // 👉 direkt in die Master-Liste speichern (nummer darf leer sein)
   mitarbeiterListe.push({ name, nummer: spind, kategorie, start: startInput.value });
+  localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
 
-  const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
-    !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
-    !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
-  );
-  localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
-
-  // Gesamtliste sauber neu zusammensetzen
-  mitarbeiterListe.length = 0;
-  mitarbeiterListe.push(...frauenMitarbeiterListe, ...maennerMitarbeiterListe, ...zusatzMitarbeiter);
-
+  // UI aktualisieren
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
   kategorieWechsel();
@@ -1795,11 +1802,8 @@ function addMitarbeiter() {
 }
 
 
-// ✅ DOMContentLoaded bleibt für andere Funktionen
-document.addEventListener("DOMContentLoaded", function () {
-  // Hier z. B. initiale Funktionen aufrufen, z. B.:
-  updateMitarbeiterDatalist();
-});
+
+
 
 
 
@@ -1812,17 +1816,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
  
-
 function deleteMitarbeiter(index) {
   if (!confirm("Mitarbeiter wirklich löschen?")) return;
 
   mitarbeiterListe.splice(index, 1);
-
-  const zusatzMitarbeiter = mitarbeiterListe.filter(m =>
-    !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
-    !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
-  );
-  localStorage.setItem('mitarbeiterListe', JSON.stringify(zusatzMitarbeiter));
+  localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
 
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
@@ -1830,6 +1828,8 @@ function deleteMitarbeiter(index) {
   zeigeFreieSpindnummern();
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 }
+
+
 
 
 
@@ -1908,13 +1908,13 @@ function renderMitarbeiterTabelle() {
   const tbody = document.querySelector("#mitarbeiterTabelle tbody");
   const gewaehlteKat = document.getElementById("mitarbeiterKategorieFilter")?.value || "alle";
 
-  // Basisliste ggf. nach Kategorie filtern
-  let liste = [...mitarbeiterListe];
+  // Liste mit stabilem Index (_idx) aufbauen
+  let liste = mitarbeiterListe.map((m, i) => ({ ...m, _idx: i }));
   if (gewaehlteKat !== "alle") {
     liste = liste.filter(m => (m.kategorie || "") === gewaehlteKat);
   }
 
-  // Sortierung wie bisher (Spind numerisch, dann Name)
+  // Sortierung: Spind numerisch, dann Name
   liste.sort((a, b) => {
     const na = parseInt(normSpind(a.nummer) || "0", 10);
     const nb = parseInt(normSpind(b.nummer) || "0", 10);
@@ -1925,23 +1925,78 @@ function renderMitarbeiterTabelle() {
   // Tabelle neu aufbauen
   tbody.innerHTML = "";
   liste.forEach(m => {
-    const idx = mitarbeiterListe.findIndex(x =>
-      x.name === m.name && x.nummer === m.nummer && x.kategorie === m.kategorie
-    );
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${m.name}</td>
-     <td>${displaySpind(m) || "-"}</td>
-
+      <td class="spind-cell">${displaySpind(m) || "-"}</td>
       <td>${m.kategorie || '-'}</td>
-      <td><button onclick="deleteMitarbeiter(${idx})">Löschen</button></td>
+      <td>
+        <button onclick="startEditSpind(${m._idx}, this)">Bearbeiten</button>
+        <button onclick="deleteMitarbeiter(${m._idx})">Löschen</button>
+      </td>
     `;
     tbody.appendChild(row);
   });
 
-  // bereits eingegebenen Suchtext direkt anwenden
+  // vorhandenen Suchtext anwenden
   filterMitarbeiterTabelle();
 }
+
+// ... deine Funktion deleteMitarbeiter(index) { ... }
+
+// === HIER EINSETZEN: Edit-Helfer ===
+function startEditSpind(idx, btn) {
+  const tr = btn.closest('tr');
+  const spindTd = tr.children[1];
+  const kat = (tr.children[2].textContent || "").trim();
+  const cur = (spindTd.textContent || "").trim();
+  const value = (cur === "-" ? "" : cur);
+
+  spindTd.innerHTML =
+    `<input type="text" class="edit-spind"
+            placeholder="${kat === 'maenner' ? 'z. B. 01' : 'z. B. 1'}"
+            value="${value}">`;
+
+  tr.children[3].innerHTML = `
+    <button onclick="saveSpind(${idx}, this)">Speichern</button>
+    <button onclick="cancelEditSpind(this)">Abbrechen</button>
+  `;
+}
+
+function saveSpind(idx, btn) {
+  const tr = btn.closest('tr');
+  const kat = (tr.children[2].textContent || "").trim();
+  const input = tr.querySelector('input.edit-spind');
+
+  let spind = (input.value || "").trim();
+  spind = spind ? spind.replace(/\D/g, "") : "";
+  if (kat === "maenner" && spind && !/^0/.test(spind)) spind = "0" + spind;
+
+  if (spind && mitarbeiterListe.some((m, i) =>
+      i !== idx && m.kategorie === kat && normSpind(m.nummer) === normSpind(spind))) {
+    alert("❌ Diese Spindnummer ist in dieser Kategorie bereits vergeben.");
+    return;
+  }
+
+  mitarbeiterListe[idx].nummer = spind;
+  localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+
+  renderMitarbeiterTabelle();
+  updateMitarbeiterDatalist();
+  kategorieWechsel();
+  zeigeFreieSpindnummern?.();
+  if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
+  alert("✅ Spind gespeichert.");
+}
+
+function cancelEditSpind(btn) {
+  renderMitarbeiterTabelle();
+}
+// === Ende Edit-Helfer ===
+
+
+// Danach geht's weiter mit:
+function zeigeFreieSpindnummern() { ... }
 
 
 
@@ -1981,23 +2036,37 @@ async function loadDataFromOneDrive() {
 
     const data = await res.json();
 
+    // === Bestand & History ===
     bestand = data.bestand || {};
     history = data.history || [];
-    const neueZusatz = data.mitarbeiterListe || [];
 
-    // ⬇️ WICHTIG: Liste im Speicher neu zusammensetzen
+    // === Mitarbeiterliste laden (mit Legacy-Fallback) ===
+    const cloudList = Array.isArray(data.mitarbeiterListe) ? data.mitarbeiterListe : [];
+
+    let neueMasterListe;
+    if (data.schemaVersion === 1) {
+      // Neues Format: komplette Master-Liste liegt vor
+      neueMasterListe = cloudList;
+    } else {
+      // Legacy: Cloud enthielt früher nur "Zusatz" → einmalig mit statischer Basis mergen
+      const basis = [
+        ...frauenMitarbeiterListe.map(m => ({ ...m })),
+        ...maennerMitarbeiterListe.map(m => ({ ...m }))
+      ];
+      const basisKey = new Set(basis.map(m => `${m.kategorie}|${m.name}|${m.nummer || ""}`));
+      const extras = cloudList.filter(m => !basisKey.has(`${m.kategorie}|${m.name}|${m.nummer || ""}`));
+      neueMasterListe = [...basis, ...extras];
+    }
+
+    // In Speicher übernehmen & persistieren
     mitarbeiterListe.length = 0;
-    mitarbeiterListe.push(
-      ...frauenMitarbeiterListe,
-      ...maennerMitarbeiterListe,
-      ...neueZusatz
-    );
+    mitarbeiterListe.push(...neueMasterListe);
 
-    // optional: zusätzlich im LocalStorage ablegen (kann bleiben)
     localStorage.setItem('bestand', JSON.stringify(bestand));
     localStorage.setItem('history', JSON.stringify(history));
-    localStorage.setItem('mitarbeiterListe', JSON.stringify(neueZusatz));
+    localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
 
+    // UI aktualisieren
     updateBestandTabelle?.();
     updateDashboard?.();
     renderMitarbeiterTabelle?.();
@@ -2007,11 +2076,12 @@ async function loadDataFromOneDrive() {
     alert("✅ Daten erfolgreich geladen");
   } catch (e) {
     console.error(e);
-    alert("❌ Fehler beim Laden");
+    alert("❌ Fehler beim Laden\n" + (e.message || e));
   } finally {
     loadInProgress = false;
   }
 }
+
 
 
 
@@ -2026,16 +2096,11 @@ async function saveDataToOneDrive() {
   loginInProgress = true;
 
   try {
-    // ✅ immer so: kümmert sich um silent + loginPopup + activeAccount
     const accessToken = await getAccessToken();
     const { driveId, folderId } = await ensureTargetIds();
 
-    const neueZusatz = mitarbeiterListe.filter(m =>
-      !frauenMitarbeiterListe.find(f => f.name === m.name && f.nummer === m.nummer) &&
-      !maennerMitarbeiterListe.find(ma => ma.name === m.name && ma.nummer === m.nummer)
-    );
-
-    const data = { bestand, history, mitarbeiterListe: neueZusatz };
+    // 👇 ganze Master-Liste mitspeichern
+    const data = { bestand, history, mitarbeiterListe };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
     const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
@@ -2050,11 +2115,12 @@ async function saveDataToOneDrive() {
     alert("✅ Daten gespeichert!");
   } catch (e) {
     console.error(e);
-    alert("❌ Fehler beim Speichern");
+    alert("❌ Fehler beim Speichern\n" + (e.message || e));
   } finally {
     loginInProgress = false;
   }
 }
+
 
 
 
@@ -2067,62 +2133,6 @@ function updateMitarbeiterDatalist() {
 
 // ✅ Sortierung + Anzeige (mit führender 0 bei Männern) pro Kategorie
 function kategorieWechsel() {
-  const kategorie = document.getElementById("kategorieSelect").value;
-  const mitarbeiterInput = document.getElementById("mitarbeiterInput");
-  const mitarbeiterDatalist = document.getElementById("mitarbeiterListe");
-  const idInput = document.getElementById("idInput");
-
-  // Felder leeren
-  mitarbeiterInput.value = "";
-  idInput.value = "";
-
-  if (kategorie === "produktion") {
-    // Mitarbeiterfeld deaktivieren
-    mitarbeiterInput.disabled = true;
-    idInput.disabled = true;
-    mitarbeiterDatalist.innerHTML = "";
-    return;
-  }
-
-  // Mitarbeiterfeld aktivieren
-  mitarbeiterInput.disabled = false;
-  idInput.disabled = false;
-
-  let quelle = [];
-  if (kategorie === "frauen") {
-    quelle = [...frauenMitarbeiterListe];
-  } else if (kategorie === "maenner") {
-    quelle = [...maennerMitarbeiterListe];
-  } else if (kategorie === "zeitarbeiter") {
-    quelle = [];
-  }
-
-  // Zusatzmitarbeiter dieser Kategorie ergänzen
-  const zusatz = mitarbeiterListe.filter(m =>
-    m.kategorie === kategorie &&
-    !frauenMitarbeiterListe.includes(m) &&
-    !maennerMitarbeiterListe.includes(m)
-  );
-  quelle = [...quelle, ...zusatz];
-
-  // 🔢 Sortiert nach Spind (numerisch), dann Name
-  quelle.sort((a, b) => {
-    const na = parseInt(normSpind(a.nummer) || "0", 10);
-    const nb = parseInt(normSpind(b.nummer) || "0", 10);
-    if (na !== nb) return na - nb;
-    return a.name.localeCompare(b.name);
-  });
-
-  // 📝 Datalist neu aufbauen (Anzeige über displaySpind)
-  mitarbeiterDatalist.innerHTML = "";
-  quelle.forEach(m => {
-    const option = document.createElement("option");
-   const sp = displaySpind(m);
-option.value = sp ? `${m.name} (${sp})` : m.name;
-
-    mitarbeiterDatalist.appendChild(option);
-  });
-}
 
 
 
