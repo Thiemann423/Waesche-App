@@ -2132,18 +2132,50 @@ function updateMitarbeiterDatalist() {
 }
 
 // ✅ Sortierung + Anzeige (mit führender 0 bei Männern) pro Kategorie
+// ✅ Sortierung + Anzeige (mit führender 0 bei Männern) pro Kategorie
 function kategorieWechsel() {
+  const kategorie = document.getElementById("kategorieSelect").value;
+  const mitarbeiterInput   = document.getElementById("mitarbeiterInput");
+  const mitarbeiterDatalist= document.getElementById("mitarbeiterListe");
+  const idInput            = document.getElementById("idInput");
 
+  // Felder leeren
+  mitarbeiterInput.value = "";
+  idInput.value = "";
 
+  // Produktion: Felder deaktivieren und Liste leeren
+  if (kategorie === "produktion") {
+    mitarbeiterInput.disabled = true;
+    idInput.disabled = true;
+    mitarbeiterDatalist.innerHTML = "";
+    return;
+  }
 
+  // sonst aktivieren
+  mitarbeiterInput.disabled = false;
+  idInput.disabled = false;
 
-// Initial aufrufen
-updateMitarbeiterDatalist();
+  // Quelle: aus der Masterliste nach Kategorie
+  let quelle = mitarbeiterListe.filter(m => (m.kategorie || "") === kategorie);
 
+  // Sortiert nach Spind (numerisch), dann Name
+  quelle.sort((a, b) => {
+    const na = parseInt(normSpind(a.nummer) || "0", 10);
+    const nb = parseInt(normSpind(b.nummer) || "0", 10);
+    if (na !== nb) return na - nb;
+    return a.name.localeCompare(b.name);
+  });
 
+  // Datalist neu aufbauen (Anzeige über displaySpind)
+  mitarbeiterDatalist.innerHTML = "";
+  quelle.forEach(m => {
+    const opt = document.createElement("option");
+    const sp  = displaySpind(m);
+    opt.value = sp ? `${m.name} (${sp})` : m.name;
+    mitarbeiterDatalist.appendChild(opt);
+  });
+}
 
-
-  </script>
 
 <h2>Speicher zurücksetzen</h2>
 <button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
