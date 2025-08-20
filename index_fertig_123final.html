@@ -1995,8 +1995,7 @@ function cancelEditSpind(btn) {
 // === Ende Edit-Helfer ===
 
 
-// Danach geht's weiter mit:
-function zeigeFreieSpindnummern() { ... }
+
 
 
 
@@ -2177,10 +2176,10 @@ function kategorieWechsel() {
 }
 
 
+</script>
+
 <h2>Speicher zurücksetzen</h2>
 <button onclick="clearLocalStorage()">Speicher leeren & neu laden</button>
-
-
 
 <script>
 function clearLocalStorage() {
@@ -2190,18 +2189,19 @@ function clearLocalStorage() {
   }
 }
 </script>
+
 <script>
-  function toggleMitarbeiterVerwaltung() {
-    const container = document.querySelector(".mitarbeiter-container");
-    const btn = document.getElementById("toggleMitarbeiterBtn");
-    if (container.style.display === "none" || container.style.display === "") {
-      container.style.display = "block";
-      btn.textContent = "Mitarbeiterverwaltung ausblenden";
-    } else {
-      container.style.display = "none";
-      btn.textContent = "Mitarbeiterverwaltung anzeigen";
-    }
+function toggleMitarbeiterVerwaltung() {
+  const container = document.querySelector(".mitarbeiter-container");
+  const btn = document.getElementById("toggleMitarbeiterBtn");
+  if (container.style.display === "none" || container.style.display === "") {
+    container.style.display = "block";
+    btn.textContent = "Mitarbeiterverwaltung ausblenden";
+  } else {
+    container.style.display = "none";
+    btn.textContent = "Mitarbeiterverwaltung anzeigen";
   }
+}
 </script>
 
 
