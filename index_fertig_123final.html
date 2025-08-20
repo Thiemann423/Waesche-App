@@ -1144,20 +1144,15 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
   doc.text("Wäscheausgabe Beleg", 10, 20);
   doc.text(`Empfänger: ${empfaengerText}`, 10, 30);
   doc.text(`Kategorie: ${kategorie}`, 10, 40);
-
-  // ▼ HIER konditional statt fix „Abteilung“
   if (kategorie === "produktion") {
     doc.text(`Produktion: ${abteilung || "-"}`, 10, 50);
   } else {
     doc.text(`Abteilung: ${abteilung || "-"}`, 10, 50);
   }
-  // ▲ Ende
-
   doc.text(`Datum: ${dateStr}`, 10, 60);
   doc.text("Artikel:", 10, 70);
 
   details.forEach((line, index) => doc.text(line, 10, 80 + index * 10));
-
   doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
 
   const imgM = document.getElementById("sigMitarbeiter").toDataURL("image/png");
@@ -1170,14 +1165,17 @@ async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, ka
 
   const fileName = safeFileName(`Ausgabe_${empfaengerKey}_${dateStr}.pdf`);
   const pdfBlob = pdfToBlob(doc);
+
   const ok = await loginAndUploadPDF(pdfBlob, fileName);
   if (!ok) throw new Error("Upload fehlgeschlagen");
-  if (!isIOS()) doc.save(fileName);
-}
- else {
+
+  if (!isIOS()) {
+    doc.save(fileName);
+  } else {
     console.log("iOS erkannt – kein lokaler Download, nur OneDrive-Upload.");
   }
 }
+
 
 
 
