@@ -1078,13 +1078,18 @@ async function abschliessen() {
     const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
     bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
 
-    history.push({
-      datum: datum || new Date().toISOString().split('T')[0],
-      mitarbeiter: mitarbeiterName,
-      artikel: artikelName,
-      groesse: groesse,
-      anzahl: anzahl
-    });
+history.push({
+  datum: datum || new Date().toISOString().split("T")[0],
+  mitarbeiter: mitarbeiterName,                    // alt
+  empfaenger: (kategorie === "produktion") ? `Abteilung: ${abteilung || ""}` : (mitarbeiterName || ""),
+  artikel: artikelName,
+  groesse: groesse || "-",
+  anzahl: anzahl,
+  typ: "ausgabe",
+  kategorie,
+  abteilung: abteilung || ""
+});
+
 
     ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
   });
@@ -1253,14 +1258,20 @@ async function rueckgabeAbschliessen() {
 
     bestand[nameKey][groesse] += anzahl;
 
-    history.push({
-      datum: datum || new Date().toISOString().split('T')[0],
-      mitarbeiter: mitarbeiterName,
-      artikel: artikelName,
-      groesse: groesse,
-      anzahl: anzahl,
-      rueckgabe: true
-    });
+   // NEU:
+history.push({
+  datum: dateStr,
+  mitarbeiter: mitarbeiterName,
+  empfaenger: (kategorie === "produktion") ? `Abteilung: ${abteilung || ""}` : (mitarbeiterName || ""),
+  artikel: artikelName,
+  groesse: groesse || "-",
+  anzahl: anzahl,
+  typ: "rueckgabe",
+  rueckgabe: true,
+  kategorie,
+  abteilung: abteilung || ""
+});
+
 
     rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
   });
@@ -1592,16 +1603,15 @@ function updateDashboard() {
   const tbody = document.querySelector("#dashboardTabelle tbody");
   tbody.innerHTML = "";
 
-  const nameFilter = document.getElementById("dashboardSearch").value.toLowerCase();
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
+  const nameFilter = (document.getElementById("dashboardSearch").value || "").toLowerCase();
+  const startDate  = document.getElementById("startDate").value;
+  const endDate    = document.getElementById("endDate").value;
 
-  let filteredHistory = [...history];
+  let filteredHistory = Array.isArray(history) ? [...history] : [];
   if (!zeigeAlle) {
     const heute = new Date();
     const vor30Tagen = new Date();
     vor30Tagen.setDate(heute.getDate() - 30);
-
     filteredHistory = filteredHistory.filter(entry => {
       const entryDate = new Date(entry.datum);
       return entryDate >= vor30Tagen && entryDate <= heute;
@@ -1609,16 +1619,37 @@ function updateDashboard() {
   }
 
   filteredHistory.forEach(entry => {
-    const mitarbeiter = entry.mitarbeiter.toLowerCase();
-    if (nameFilter && !mitarbeiter.includes(nameFilter)) return;
+    // Empfänger bestimmen:
+    // 1) bevorzugt 'empfaenger' (neu),
+    // 2) sonst bei Produktion "Abteilung: <abteilung>",
+    // 3) sonst altes Feld 'mitarbeiter'
+    const empfaenger =
+      (entry.empfaenger && String(entry.empfaenger).trim()) ||
+      (entry.kategorie === "produktion" ? `Abteilung: ${entry.abteilung || ""}` : "") ||
+      (entry.mitarbeiter || "");
+
+    // Filter auf Empfänger anwenden
+    if (nameFilter && !empfaenger.toLowerCase().includes(nameFilter)) return;
     if (startDate && entry.datum < startDate) return;
-    if (endDate && entry.datum > endDate) return;
+    if (endDate   && entry.datum > endDate)   return;
+
+    // Rückgaben markieren und Menge negativ darstellen
+    const isRueckgabe = !!entry.rueckgabe || entry.typ === "rueckgabe";
+    const menge = (parseInt(entry.anzahl, 10) || 0) * (isRueckgabe ? -1 : 1);
+    const artikelText = (entry.artikel || "") + (isRueckgabe ? " [Rückgabe]" : "");
 
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${entry.datum}</td><td>${entry.mitarbeiter}</td><td>${entry.artikel}</td><td>${entry.groesse}</td><td>${entry.anzahl}</td>`;
+    row.innerHTML = `
+      <td>${entry.datum || ""}</td>
+      <td>${empfaenger}</td>
+      <td>${artikelText}</td>
+      <td>${entry.groesse || "-"}</td>
+      <td>${menge}</td>
+    `;
     tbody.appendChild(row);
   });
 }
+
 
 // Buttons hinzufügen
 const dashboardContainer = document.querySelector(".dashboard-container");
