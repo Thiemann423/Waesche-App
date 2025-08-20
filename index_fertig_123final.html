@@ -1241,6 +1241,7 @@ async function rueckgabeAbschliessen() {
   const abteilung = document.getElementById("abteilung").value;
   const kategorie = document.getElementById("kategorieSelect").value;
 
+  const dateStr = datum || new Date().toISOString().split("T")[0];  // ← NEU
   const rueckgabeDetails = [];
 
   document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
@@ -1258,23 +1259,22 @@ async function rueckgabeAbschliessen() {
 
     bestand[nameKey][groesse] += anzahl;
 
-   // NEU:
-history.push({
-  datum: dateStr,
-  mitarbeiter: mitarbeiterName,
-  empfaenger: (kategorie === "produktion") ? `Abteilung: ${abteilung || ""}` : (mitarbeiterName || ""),
-  artikel: artikelName,
-  groesse: groesse || "-",
-  anzahl: anzahl,
-  typ: "rueckgabe",
-  rueckgabe: true,
-  kategorie,
-  abteilung: abteilung || ""
-});
-
+    history.push({
+      datum: dateStr,                          // ← jetzt definiert
+      mitarbeiter: mitarbeiterName,
+      empfaenger: (kategorie === "produktion") ? `Abteilung: ${abteilung || ""}` : (mitarbeiterName || ""),
+      artikel: artikelName,
+      groesse: groesse || "-",
+      anzahl: anzahl,
+      typ: "rueckgabe",
+      rueckgabe: true,
+      kategorie,
+      abteilung: abteilung || ""
+    });
 
     rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
   });
+
 
   localStorage.setItem('bestand', JSON.stringify(bestand));
   localStorage.setItem('history', JSON.stringify(history));
