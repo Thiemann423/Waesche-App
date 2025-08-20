@@ -805,7 +805,7 @@ const artikel = [
 
 artikel.sort((a, b) => a.name.localeCompare(b.name));
 
-    const groessen = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL", "XXXXXXL","7", "8", "9", "10", "11", "28", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "52" , "54", "56", "58", "60", "62", "64", "66", "98", "104", "37/38", "39/40", "41/42","43/44","44/46", "45/46", "50/52", "52/54", "54/56", "58/60", "62/64"];
+    const groessen = [" ", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL", "XXXXXXL","7", "8", "9", "10", "11", "28", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "52" , "54", "56", "58", "60", "62", "64", "66", "98", "104", "37/38", "39/40", "41/42","43/44","44/46", "45/46", "50/52", "52/54", "54/56", "58/60", "62/64"];
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let artikelStamm = JSON.parse(localStorage.getItem('artikelStamm')) || {};
