@@ -300,12 +300,15 @@
   <input type="date" id="endDate" oninput="filterDashboard()">
   
   <h3>Alle Ausgaben</h3>
-  <table id="dashboardTabelle">
-    <thead>
-      <tr><th>Datum</th><th>Mitarbeiter</th><th>Artikel</th><th>Größe</th><th>Anzahl</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<table id="dashboardTabelle">
+  <thead>
+    <tr>
+      <th>Datum</th><th>Empfänger</th><th>Artikel</th><th>Größe</th><th>Anzahl</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
 </div>
 <div style="margin: 20px 0; padding: 10px; border: 1px solid #ccc; border-radius: 6px; background-color: #f9f9f9;">
 
@@ -1080,8 +1083,10 @@ async function abschliessen() {
 
 history.push({
   datum: datum || new Date().toISOString().split("T")[0],
-  mitarbeiter: mitarbeiterName,                    // alt
-  empfaenger: (kategorie === "produktion") ? `Abteilung: ${abteilung || ""}` : (mitarbeiterName || ""),
+  mitarbeiter: mitarbeiterName,
+  empfaenger: (kategorie === "produktion")
+                ? `Produktion: ${abteilung || ""}`
+                : (mitarbeiterName || ""),
   artikel: artikelName,
   groesse: groesse || "-",
   anzahl: anzahl,
@@ -1089,6 +1094,7 @@ history.push({
   kategorie,
   abteilung: abteilung || ""
 });
+
 
 
     ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
@@ -1120,57 +1126,59 @@ history.push({
 
 
 
-
 async function generatePDF(mitarbeiter, datum, details, bemerkung, abteilung, kategorie) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  // Anzeige
-  const empfaengerText = (kategorie === "produktion") ? "Abteilung: " + abteilung : mitarbeiter;
-  const empfaengerKey  = (kategorie === "produktion") ? `Abteilung_${abteilung}` : mitarbeiter;
+  const empfaengerText = (kategorie === "produktion")
+    ? `Produktion: ${abteilung || ""}`
+    : mitarbeiter;
+
+  const empfaengerKey  = (kategorie === "produktion")
+    ? `Produktion_${abteilung || ""}`
+    : mitarbeiter;
+
   const dateStr = datum || new Date().toISOString().split('T')[0];
 
   doc.setFontSize(14);
   doc.text("Wäscheausgabe Beleg", 10, 20);
   doc.text(`Empfänger: ${empfaengerText}`, 10, 30);
   doc.text(`Kategorie: ${kategorie}`, 10, 40);
-  doc.text(`Abteilung: ${abteilung}`, 10, 50);
+
+  // ▼ HIER konditional statt fix „Abteilung“
+  if (kategorie === "produktion") {
+    doc.text(`Produktion: ${abteilung || "-"}`, 10, 50);
+  } else {
+    doc.text(`Abteilung: ${abteilung || "-"}`, 10, 50);
+  }
+  // ▲ Ende
+
   doc.text(`Datum: ${dateStr}`, 10, 60);
   doc.text("Artikel:", 10, 70);
 
-  details.forEach((line, index) => {
-    doc.text(line, 10, 80 + index * 10);
-  });
+  details.forEach((line, index) => doc.text(line, 10, 80 + index * 10));
 
   doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
 
-  const canvasM = document.getElementById("sigMitarbeiter");
-  const imgM = canvasM.toDataURL("image/png");
+  const imgM = document.getElementById("sigMitarbeiter").toDataURL("image/png");
   doc.text("Unterschrift Mitarbeiter:", 10, 100 + details.length * 10);
   doc.addImage(imgM, "PNG", 10, 110 + details.length * 10, 80, 30);
 
-  const canvasA = document.getElementById("sigAusgabe");
-  const imgA = canvasA.toDataURL("image/png");
+  const imgA = document.getElementById("sigAusgabe").toDataURL("image/png");
   doc.text("Unterschrift Ausgabe:", 10, 145 + details.length * 10);
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
-  // ---------- hier der wichtige Teil ----------
   const fileName = safeFileName(`Ausgabe_${empfaengerKey}_${dateStr}.pdf`);
-
-  // Safari/iOS mag manchmal output("blob") nicht → Fallback nutzen
-  const pdfBlob = pdfToBlob(doc);  // nutzt die Hilfsfunktion
-
-  // 1) Immer erst in OneDrive hochladen
+  const pdfBlob = pdfToBlob(doc);
   const ok = await loginAndUploadPDF(pdfBlob, fileName);
-  if (ok === false) throw new Error("Upload fehlgeschlagen");
-
-  // 2) Nur auf Nicht-iOS zusätzlich lokal speichern
-  if (!isIOS()) {
-    doc.save(fileName);
-  } else {
+  if (!ok) throw new Error("Upload fehlgeschlagen");
+  if (!isIOS()) doc.save(fileName);
+}
+ else {
     console.log("iOS erkannt – kein lokaler Download, nur OneDrive-Upload.");
   }
 }
+
 
 
 
@@ -1182,52 +1190,50 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  const empfaengerText = (kategorie === "produktion") ? "Abteilung: " + abteilung : mitarbeiter;
-  const empfaengerKey  = (kategorie === "produktion") ? `Abteilung_${abteilung}` : mitarbeiter;
+  const empfaengerText = (kategorie === "produktion")
+    ? `Produktion: ${abteilung || ""}`
+    : mitarbeiter;
+
+  const empfaengerKey  = (kategorie === "produktion")
+    ? `Produktion_${abteilung || ""}`
+    : mitarbeiter;
+
   const dateStr = datum || new Date().toISOString().split('T')[0];
 
   doc.setFontSize(14);
   doc.text("Wäsche-Rückgabe Beleg", 10, 20);
   doc.text(`Empfänger: ${empfaengerText}`, 10, 30);
   doc.text(`Kategorie: ${kategorie}`, 10, 40);
-  doc.text(`Abteilung: ${abteilung}`, 10, 50);
+
+  if (kategorie === "produktion") {
+    doc.text(`Produktion: ${abteilung || "-"}`, 10, 50);
+  } else {
+    doc.text(`Abteilung: ${abteilung || "-"}`, 10, 50);
+  }
+
   doc.text(`Datum: ${dateStr}`, 10, 60);
   doc.text("Artikel:", 10, 70);
 
-  details.forEach((line, index) => {
-    doc.text(line, 10, 80 + index * 10);
-  });
+  details.forEach((line, index) => doc.text(line, 10, 80 + index * 10));
 
   doc.text(`Bemerkung: ${bemerkung}`, 10, 90 + details.length * 10);
 
-  const canvasM = document.getElementById("sigMitarbeiter");
-  const imgM = canvasM.toDataURL("image/png");
+  const imgM = document.getElementById("sigMitarbeiter").toDataURL("image/png");
   doc.text("Unterschrift Mitarbeiter:", 10, 100 + details.length * 10);
   doc.addImage(imgM, "PNG", 10, 110 + details.length * 10, 80, 30);
 
-  const canvasA = document.getElementById("sigAusgabe");
-  const imgA = canvasA.toDataURL("image/png");
+  const imgA = document.getElementById("sigAusgabe").toDataURL("image/png");
   doc.text("Unterschrift Rücknahme:", 10, 145 + details.length * 10);
   doc.addImage(imgA, "PNG", 10, 155 + details.length * 10, 80, 30);
 
-  // Dateiname
-  const rawName  = `Rueckgabe_${empfaengerKey}_${dateStr}.pdf`;
-  const fileName = safeFileName(rawName);
-
-  // 1) Blob erstellen (iOS-sicher)
+  const fileName = safeFileName(`Rueckgabe_${empfaengerKey}_${dateStr}.pdf`);
   const pdfBlob = pdfToBlob(doc);
-
-  // 2) Erst OneDrive-Upload
   const ok = await loginAndUploadPDF(pdfBlob, fileName);
   if (!ok) throw new Error("Upload fehlgeschlagen");
-
-  // 3) Nur auf Nicht-iOS zusätzlich lokal speichern
-  if (!isIOS()) {
-    doc.save(fileName);
-  }
-
+  if (!isIOS()) doc.save(fileName);
   return true;
 }
+
 
 
 
@@ -1237,19 +1243,16 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
 async function rueckgabeAbschliessen() {
   const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
   const datum = document.getElementById("datum").value;
-  const bemerkung = document.getElementById("bemerkung").value;
   const abteilung = document.getElementById("abteilung").value;
   const kategorie = document.getElementById("kategorieSelect").value;
+  const bemerkung = document.getElementById("bemerkung").value;
 
-  const dateStr = datum || new Date().toISOString().split("T")[0];  // ← NEU
   const rueckgabeDetails = [];
 
   document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
-    const artikelInput = div.querySelector(".artikelSuchfeld");
+    const artikelName = div.querySelector(".artikelSuchfeld").value;
     const groesse = div.querySelector("select:nth-of-type(1)").value;
-    const inputAnzahl = div.querySelector("input[type='number']");
-    const artikelName = artikelInput.value;
-    const anzahl = parseInt(inputAnzahl.value, 10) || 0;
+    const anzahl = parseInt(div.querySelector("input[type='number']").value, 10) || 0;
 
     const nameKey = normalizeArtikelName(artikelName);
     if (!nameKey || anzahl <= 0) return;
@@ -1257,12 +1260,16 @@ async function rueckgabeAbschliessen() {
     if (!bestand[nameKey]) bestand[nameKey] = {};
     if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
+    // Bestand ERHÖHEN
     bestand[nameKey][groesse] += anzahl;
 
+    // Historie als Rückgabe erfassen
     history.push({
-      datum: dateStr,                          // ← jetzt definiert
+      datum: datum || new Date().toISOString().split("T")[0],
       mitarbeiter: mitarbeiterName,
-      empfaenger: (kategorie === "produktion") ? `Abteilung: ${abteilung || ""}` : (mitarbeiterName || ""),
+      empfaenger: (kategorie === "produktion")
+        ? `Produktion: ${abteilung || ""}`
+        : (mitarbeiterName || ""),
       artikel: artikelName,
       groesse: groesse || "-",
       anzahl: anzahl,
@@ -1275,7 +1282,6 @@ async function rueckgabeAbschliessen() {
     rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
   });
 
-
   localStorage.setItem('bestand', JSON.stringify(bestand));
   localStorage.setItem('history', JSON.stringify(history));
   updateBestandTabelle();
@@ -1286,7 +1292,7 @@ async function rueckgabeAbschliessen() {
   } catch (e) {
     console.error(e);
     alert("❌ PDF/Upload fehlgeschlagen.");
-    return; // Kein Reset/Reload bei Fehler
+    return;
   }
 
   document.getElementById("artikelContainer").innerHTML = "";
@@ -1297,6 +1303,8 @@ async function rueckgabeAbschliessen() {
   alert("✅ Rückgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
   location.reload();
 }
+
+
 
 
 
@@ -1619,21 +1627,15 @@ function updateDashboard() {
   }
 
   filteredHistory.forEach(entry => {
-    // Empfänger bestimmen:
-    // 1) bevorzugt 'empfaenger' (neu),
-    // 2) sonst bei Produktion "Abteilung: <abteilung>",
-    // 3) sonst altes Feld 'mitarbeiter'
+    // Empfänger: bevorzugt gespeichertes Feld, sonst sauberer Fallback
     const empfaenger =
       (entry.empfaenger && String(entry.empfaenger).trim()) ||
-      (entry.kategorie === "produktion" ? `Abteilung: ${entry.abteilung || ""}` : "") ||
-      (entry.mitarbeiter || "");
+      (entry.kategorie === "produktion" ? `Produktion: ${entry.abteilung || ""}` : (entry.mitarbeiter || ""));
 
-    // Filter auf Empfänger anwenden
     if (nameFilter && !empfaenger.toLowerCase().includes(nameFilter)) return;
     if (startDate && entry.datum < startDate) return;
     if (endDate   && entry.datum > endDate)   return;
 
-    // Rückgaben markieren und Menge negativ darstellen
     const isRueckgabe = !!entry.rueckgabe || entry.typ === "rueckgabe";
     const menge = (parseInt(entry.anzahl, 10) || 0) * (isRueckgabe ? -1 : 1);
     const artikelText = (entry.artikel || "") + (isRueckgabe ? " [Rückgabe]" : "");
@@ -1649,6 +1651,26 @@ function updateDashboard() {
     tbody.appendChild(row);
   });
 }
+function migriereHistorieLabel() {
+  if (!Array.isArray(history)) return;
+  let changed = false;
+  history = history.map(e => {
+    if (e && e.kategorie === "produktion") {
+      const neu = `Produktion: ${e.abteilung || ""}`;
+      if (!e.empfaenger || /^Abteilung:/i.test(e.empfaenger)) {
+        changed = true;
+        return { ...e, empfaenger: neu };
+      }
+    }
+    return e;
+  });
+  if (changed) {
+    localStorage.setItem("history", JSON.stringify(history));
+    updateDashboard?.();
+  }
+}
+
+
 
 
 // Buttons hinzufügen
@@ -1742,22 +1764,23 @@ function toggleFreieSpindnummern() {
 
 
 window.addEventListener("DOMContentLoaded", () => {
-  migrateBestandKeys();   // ← zuerst bereinigen
+  migrateBestandKeys();
   kategorieWechsel();
   updateBestandTabelle();
+
+  migriereHistorieLabel();   // ← HIER einfügen
+
   updateDashboard();
   renderMitarbeiterTabelle();
   updateArtikelListe();
 
   document.querySelector(".bestand-container").style.display = "none";
   document.getElementById("toggleBestandBtn").textContent = "Bestand anzeigen";
-
   document.querySelector(".dashboard-container").style.display = "none";
   document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
-
-  // 🟠 Automatisch laden
- // loadDataFromOneDrive();
+  // loadDataFromOneDrive();
 });
+
 
 
 
@@ -2085,6 +2108,8 @@ async function loadDataFromOneDrive() {
     // Bestand & Historie
     bestand = data.bestand || {};
     history = data.history || [];
+
+    migriereHistorieLabel();
 
     // Mitarbeiterliste: Cloud ist Quelle der Wahrheit (ab schemaVersion 1)
     let cloudList = Array.isArray(data.mitarbeiterListe) ? data.mitarbeiterListe : [];
