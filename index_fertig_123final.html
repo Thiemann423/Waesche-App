@@ -697,6 +697,8 @@ maennerMitarbeiterListe.forEach(m => m.kategorie = "maenner");
 
 // Vom Storage laden (nur eigene hinzugefügte)
 // NEU: eine einzige Master-Liste
+// NEU: eine einzige Master-Liste
+// NEU: eine einzige Master-Liste
 const MASTER_KEY = 'mitarbeiterMaster';
 let mitarbeiterListe = JSON.parse(localStorage.getItem(MASTER_KEY));
 
@@ -706,8 +708,12 @@ if (!mitarbeiterListe) {
     ...frauenMitarbeiterListe.map(m => ({ ...m })),
     ...maennerMitarbeiterListe.map(m => ({ ...m }))
   ];
-  localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
 }
+
+// Doppelte entfernen & speichern
+mitarbeiterListe = dedupeMitarbeiterListe(mitarbeiterListe);
+localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+
 
 
 
@@ -1902,6 +1908,16 @@ function displaySpind(m) {
   // Frauen/Zeitarbeiter: nur Ziffern anzeigen
   return digits;
 }
+function dedupeMitarbeiterListe(list) {
+  const seen = new Set();
+  const normKey = m => `${m.kategorie||""}|${(m.name||"").trim()}|${normSpind(m.nummer)}`;
+  return list.filter(m => {
+    const k = normKey(m);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 
 
 function renderMitarbeiterTabelle() {
@@ -2035,32 +2051,29 @@ async function loadDataFromOneDrive() {
 
     const data = await res.json();
 
-    // === Bestand & History ===
+    // Bestand & Historie
     bestand = data.bestand || {};
     history = data.history || [];
 
-    // === Mitarbeiterliste laden (mit Legacy-Fallback) ===
-    const cloudList = Array.isArray(data.mitarbeiterListe) ? data.mitarbeiterListe : [];
+    // Mitarbeiterliste: Cloud ist Quelle der Wahrheit (ab schemaVersion 1)
+    let cloudList = Array.isArray(data.mitarbeiterListe) ? data.mitarbeiterListe : [];
 
-    let neueMasterListe;
-    if (data.schemaVersion === 1) {
-      // Neues Format: komplette Master-Liste liegt vor
-      neueMasterListe = cloudList;
-    } else {
-      // Legacy: Cloud enthielt früher nur "Zusatz" → einmalig mit statischer Basis mergen
+    if (data.schemaVersion !== 1) {
+      // Legacy-Datei: Basislisten + Cloud-Extras einmalig mergen
       const basis = [
         ...frauenMitarbeiterListe.map(m => ({ ...m })),
         ...maennerMitarbeiterListe.map(m => ({ ...m }))
       ];
-      const basisKey = new Set(basis.map(m => `${m.kategorie}|${m.name}|${m.nummer || ""}`));
-      const extras = cloudList.filter(m => !basisKey.has(`${m.kategorie}|${m.name}|${m.nummer || ""}`));
-      neueMasterListe = [...basis, ...extras];
+      const key = m => `${m.kategorie || ""}|${(m.name || "").trim()}|${normSpind(m.nummer)}`;
+      const basisKey = new Set(basis.map(key));
+      cloudList = [...basis, ...cloudList.filter(m => !basisKey.has(key(m)))];
     }
 
-    // In Speicher übernehmen & persistieren
+    // Deduplizieren & übernehmen
     mitarbeiterListe.length = 0;
-    mitarbeiterListe.push(...neueMasterListe);
+    mitarbeiterListe.push(...dedupeMitarbeiterListe(cloudList));
 
+    // Persistieren
     localStorage.setItem('bestand', JSON.stringify(bestand));
     localStorage.setItem('history', JSON.stringify(history));
     localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
@@ -2087,6 +2100,7 @@ async function loadDataFromOneDrive() {
 
 
 
+
 let loginInProgress = false; // global definieren, außerhalb der Funktion
 
 // ↓↓↓ speichern
@@ -2095,11 +2109,17 @@ async function saveDataToOneDrive() {
   loginInProgress = true;
 
   try {
+    // Optional aber sinnvoll: lokal gleich aufgeräumt halten
+    // (falls du das woanders schon machst, kann diese Zeile auch weg)
+    // mitarbeiterListe = dedupeMitarbeiterListe(mitarbeiterListe);
+    // localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+
     const accessToken = await getAccessToken();
     const { driveId, folderId } = await ensureTargetIds();
 
-    // 👇 ganze Master-Liste mitspeichern
-    const data = { bestand, history, mitarbeiterListe };
+    // 🔒 Duplikate entfernen + Schema-Version mitschicken
+    const clean = dedupeMitarbeiterListe(mitarbeiterListe);
+    const data = { schemaVersion: 1, bestand, history, mitarbeiterListe: clean };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
     const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
@@ -2119,6 +2139,8 @@ async function saveDataToOneDrive() {
     loginInProgress = false;
   }
 }
+
+
 
 
 
