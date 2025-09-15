@@ -1802,14 +1802,15 @@ function toggleFreieSpindnummern() {
   }
 }
 
-
-
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   migrateBestandKeys();
   kategorieWechsel();
   updateBestandTabelle();
 
-  migriereHistorieLabel();   // ← HIER einfügen
+  migriereHistorieLabel();
+
+  // ⚡️ hier zusätzlich laden
+  await loadAustritteFromOneDrive();
 
   updateDashboard();
   renderMitarbeiterTabelle();
@@ -1821,6 +1822,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("toggleDashboardBtn").textContent = "Dashboard anzeigen";
   // loadDataFromOneDrive();
 });
+
 
 
 
@@ -1917,7 +1919,7 @@ function addMitarbeiter() {
 
 
  
-function deleteMitarbeiter(index) {
+async function deleteMitarbeiter(index) {
   const m = mitarbeiterListe[index];
   if (!m) return;
   if (!confirm(`Mitarbeiter wirklich löschen?\n${m.name}${m.nummer ? ' (Spind ' + m.nummer + ')' : ''}`)) return;
@@ -1929,9 +1931,16 @@ function deleteMitarbeiter(index) {
     kategorie: m.kategorie || '',
     start: m.start || '',
     austrittAm: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
-    angelegtAm: new Date().toISOString(),             // optional: mit Uhrzeit
+    angelegtAm: new Date().toISOString(),              // optional
   });
   localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
+
+  // zusätzlich: separaten Austritte-Upload starten (nicht blockierend)
+  if (typeof saveAustritteToOneDrive === "function") {
+    saveAustritteToOneDrive().catch(err =>
+      console.warn("Austritte-Only Upload fehlgeschlagen (Gesamtsync folgt später):", err)
+    );
+  }
 
   // ❌ aus Masterliste entfernen
   mitarbeiterListe.splice(index, 1);
@@ -1943,12 +1952,13 @@ function deleteMitarbeiter(index) {
   kategorieWechsel();
   zeigeFreieSpindnummern();
 
-  // optional: gleich wieder in OneDrive sichern
+  // großer Gesamtsync (inkl. Austritte in bestand.json)
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
 
-  // 👉 neue Liste der Austritte gleich aktualisieren
+  // Liste „Austritte“ im UI aktualisieren
   filterAustritte?.();
 }
+
 
 
 // Nach deleteMitarbeiter oder am Ende deiner Script-Datei:
@@ -2301,7 +2311,59 @@ async function saveDataToOneDrive() {
     loginInProgress = false;
   }
 }
+async function saveAustritteToOneDrive() {
+  try {
+    const accessToken = await getAccessToken();
+    const { driveId, folderId } = await ensureTargetIds();
 
+    const payload = { schemaVersion: 1, mitarbeiterAustritte };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+
+    const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/mitarbeiterAustritte.json:/content?@microsoft.graph.conflictBehavior=replace`;
+
+    const r = await fetch(url, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: blob
+    });
+
+    if (!r.ok) throw new Error(await r.text());
+    console.log("✅ Austritte gespeichert");
+  } catch (e) {
+    console.error("❌ Fehler beim Speichern der Austritte:", e);
+    alert("❌ Fehler beim Speichern der Austritte\n" + (e.message || e));
+  }
+}
+
+// Lädt NUR Austritte
+async function loadAustritteFromOneDrive() {
+  try {
+    const accessToken = await getAccessToken();
+    const { driveId, folderId } = await ensureTargetIds();
+
+    const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/mitarbeiterAustritte.json:/content`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+    if (res.status === 404) { 
+      console.log("ℹ️ Noch keine mitarbeiterAustritte.json in OneDrive."); 
+      return; 
+    }
+    if (!res.ok) throw new Error(await res.text());
+
+    const json = await res.json();
+    mitarbeiterAustritte = Array.isArray(json?.mitarbeiterAustritte) ? json.mitarbeiterAustritte
+                           : Array.isArray(json) ? json
+                           : [];
+    localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
+
+    // UI aktualisieren (falls Filter existiert)
+    if (typeof filterAustritte === "function") filterAustritte();
+    console.log("✅ Austritte geladen:", mitarbeiterAustritte.length);
+  } catch (e) {
+    console.error("❌ Fehler beim Laden der Austritte:", e);
+    alert("❌ Fehler beim Laden der Austritte\n" + (e.message || e));
+  }
+}
 
 
 
