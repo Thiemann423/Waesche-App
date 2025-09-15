@@ -748,11 +748,10 @@ const EXIT_KEY = 'mitarbeiterAustritte';
 let mitarbeiterAustritte = JSON.parse(localStorage.getItem(EXIT_KEY)) || [];
 
 
-if (!mitarbeiterListe) {
-  // einmalig mit den hart codierten Listen befüllen
+if (mitarbeiterListe.length === 0) {
   mitarbeiterListe = [
     ...frauenMitarbeiterListe.map(m => ({ ...m })),
-    ...maennerMitarbeiterListe.map(m => ({ ...m }))
+    ...maennerMitarbeiterListe.map(m => ({ ...m })),
   ];
 }
 
@@ -1274,6 +1273,25 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   if (!isIOS()) doc.save(fileName);
   return true;
 }
+// 👉 Einmalig definieren (z. B. oberhalb der Funktion)
+function buildNiceExitBaseName(fullName) {
+  const n = (fullName || "").trim().replace(/\s+/g, " ");
+  if (!n) return "Unbekannt";
+
+  if (n.includes(",")) {
+    // Form: "Nachname, Vorname Rest"
+    const [nach, vorRest] = n.split(",", 2).map(s => s.trim());
+    const vor = (vorRest || "").replace(/\s+/g, "_");
+    return vor ? `${nach}_${vor}` : nach;
+  } else {
+    // Form: "Vorname(n) Nachname"  (letztes Wort = Nachname)
+    const parts = n.split(" ");
+    const nach = parts.pop();
+    const vor  = parts.join("_");
+    return vor ? `${nach}_${vor}` : nach;
+  }
+}
+
 async function generateAustrittPDF(a) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -1286,15 +1304,11 @@ async function generateAustrittPDF(a) {
   doc.text(`Start: ${a.start || "-"}`, 10, 60);
   doc.text(`Austritt am: ${a.austrittAm || "-"}`, 10, 70);
 
-  // 🔽 Dateiname schöner formatieren
-  const [jahr, monat, tag] = (a.austrittAm || new Date().toISOString().slice(0,10)).split("-");
+  // 🔽 schöner Dateiname
+  const iso = (a.austrittAm || new Date().toISOString().slice(0, 10)); // "yyyy-mm-dd"
+  const [jahr, monat, tag] = iso.split("-");
   const datumFormatiert = `${tag}-${monat}-${jahr}`;
-  
-  // Name in Nachname_Vorname zerlegen, falls "Vorname Nachname" eingegeben wurde
-  let parts = a.name.trim().split(" ");
-  let nachname = parts.pop();                 // letztes Wort = Nachname
-  let vorname = parts.join("_") || "";        // Rest = Vorname
-  const baseName = vorname ? `${nachname}_${vorname}` : nachname;
+  const baseName = buildNiceExitBaseName(a.name);
 
   const fileName = safeFileName(`Austritt_${baseName}_${datumFormatiert}.pdf`);
 
@@ -1303,6 +1317,7 @@ async function generateAustrittPDF(a) {
   if (!ok) throw new Error("Upload fehlgeschlagen");
   if (!isIOS()) doc.save(fileName);
 }
+
 
 
 
