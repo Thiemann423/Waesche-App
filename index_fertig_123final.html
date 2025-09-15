@@ -1274,6 +1274,36 @@ async function generateRueckgabePDF(mitarbeiter, datum, details, bemerkung, abte
   if (!isIOS()) doc.save(fileName);
   return true;
 }
+async function generateAustrittPDF(a) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(14);
+  doc.text("Austrittsbeleg", 10, 20);
+  doc.text(`Name: ${a.name}`, 10, 30);
+  doc.text(`Kategorie: ${a.kategorie || "-"}`, 10, 40);
+  doc.text(`Spind: ${a.nummer || "-"}`, 10, 50);
+  doc.text(`Start: ${a.start || "-"}`, 10, 60);
+  doc.text(`Austritt am: ${a.austrittAm || "-"}`, 10, 70);
+
+  // 🔽 Dateiname schöner formatieren
+  const [jahr, monat, tag] = (a.austrittAm || new Date().toISOString().slice(0,10)).split("-");
+  const datumFormatiert = `${tag}-${monat}-${jahr}`;
+  
+  // Name in Nachname_Vorname zerlegen, falls "Vorname Nachname" eingegeben wurde
+  let parts = a.name.trim().split(" ");
+  let nachname = parts.pop();                 // letztes Wort = Nachname
+  let vorname = parts.join("_") || "";        // Rest = Vorname
+  const baseName = vorname ? `${nachname}_${vorname}` : nachname;
+
+  const fileName = safeFileName(`Austritt_${baseName}_${datumFormatiert}.pdf`);
+
+  const pdfBlob = pdfToBlob(doc);
+  const ok = await loginAndUploadPDF(pdfBlob, fileName);
+  if (!ok) throw new Error("Upload fehlgeschlagen");
+  if (!isIOS()) doc.save(fileName);
+}
+
 
 
 
@@ -1918,22 +1948,28 @@ function addMitarbeiter() {
 
 
 
- 
-async function deleteMitarbeiter(index) {
+ async function deleteMitarbeiter(index) {
   const m = mitarbeiterListe[index];
   if (!m) return;
   if (!confirm(`Mitarbeiter wirklich löschen?\n${m.name}${m.nummer ? ' (Spind ' + m.nummer + ')' : ''}`)) return;
 
   // ✨ Austritt erfassen
-  mitarbeiterAustritte.push({
+  const austritt = {
     name: m.name,
     nummer: m.nummer || '',
     kategorie: m.kategorie || '',
     start: m.start || '',
     austrittAm: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
     angelegtAm: new Date().toISOString(),              // optional
-  });
+  };
+  mitarbeiterAustritte.push(austritt);
   localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
+
+  // 📄 Austritts-PDF sofort erzeugen + hochladen
+  generateAustrittPDF(austritt).catch(err => {
+    console.error("Austrittsbeleg-PDF fehlgeschlagen:", err);
+    alert("❌ Austrittsbeleg konnte nicht gespeichert/hochgeladen werden.");
+  });
 
   // zusätzlich: separaten Austritte-Upload starten (nicht blockierend)
   if (typeof saveAustritteToOneDrive === "function") {
@@ -1958,6 +1994,7 @@ async function deleteMitarbeiter(index) {
   // Liste „Austritte“ im UI aktualisieren
   filterAustritte?.();
 }
+
 
 
 
