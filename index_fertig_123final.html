@@ -376,6 +376,15 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 <ul id="startErgebnisse" style="margin-top:10px;"></ul>
 
+<!-- ✨ HIER EINFÜGEN -->
+<h3>Austritte (gelöschte Mitarbeiter)</h3>
+<label>Austritte ab (Monat):</label>
+<input type="month" id="filterAustrittMonat">
+<button onclick="filterAustritte()">Filtern</button>
+<button onclick="exportiereAustrittePdf()">Als PDF exportieren</button>
+<ul id="austrittErgebnisse" style="margin-top:10px;"></ul>
+<!-- ✨ /ENDE EINFÜGEN -->
+
 <button onclick="addMitarbeiter()">Speichern</button>
 
 
@@ -731,8 +740,13 @@ maennerMitarbeiterListe.forEach(m => m.kategorie = "maenner");
 // NEU: eine einzige Master-Liste
 // NEU: eine einzige Master-Liste
 // NEU: eine einzige Master-Liste
-const MASTER_KEY = 'mitarbeiterMaster';
-let mitarbeiterListe = JSON.parse(localStorage.getItem(MASTER_KEY));
+const MASTER_KEY   = 'mitarbeiterMaster';
+let mitarbeiterListe = JSON.parse(localStorage.getItem(MASTER_KEY)) || [];
+
+// ✨ NEU: eigener Speicher für Austritte
+const EXIT_KEY = 'mitarbeiterAustritte';
+let mitarbeiterAustritte = JSON.parse(localStorage.getItem(EXIT_KEY)) || [];
+
 
 if (!mitarbeiterListe) {
   // einmalig mit den hart codierten Listen befüllen
@@ -1904,16 +1918,71 @@ function addMitarbeiter() {
 
  
 function deleteMitarbeiter(index) {
-  if (!confirm("Mitarbeiter wirklich löschen?")) return;
+  const m = mitarbeiterListe[index];
+  if (!m) return;
+  if (!confirm(`Mitarbeiter wirklich löschen?\n${m.name}${m.nummer ? ' (Spind ' + m.nummer + ')' : ''}`)) return;
 
+  // ✨ Austritt erfassen
+  mitarbeiterAustritte.push({
+    name: m.name,
+    nummer: m.nummer || '',
+    kategorie: m.kategorie || '',
+    start: m.start || '',
+    austrittAm: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
+    angelegtAm: new Date().toISOString(),             // optional: mit Uhrzeit
+  });
+  localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
+
+  // ❌ aus Masterliste entfernen
   mitarbeiterListe.splice(index, 1);
   localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
 
+  // 🔄 UI aktualisieren
   renderMitarbeiterTabelle();
   updateMitarbeiterDatalist();
   kategorieWechsel();
   zeigeFreieSpindnummern();
+
+  // optional: gleich wieder in OneDrive sichern
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
+
+  // 👉 neue Liste der Austritte gleich aktualisieren
+  filterAustritte?.();
+}
+
+
+// Nach deleteMitarbeiter oder am Ende deiner Script-Datei:
+
+function filterAustritte() {
+  const ym = (document.getElementById("filterAustrittMonat").value || ""); // yyyy-mm
+  const list = (mitarbeiterAustritte || []).filter(a =>
+    !ym || String(a.austrittAm || "").startsWith(ym)
+  );
+
+  document.getElementById("austrittErgebnisse").innerHTML =
+    list.length 
+      ? list.map((a,i)=>`<li>${i+1}. ${a.name} (${a.kategorie}${a.nummer?`, Spind ${a.nummer}`:''}) – Austritt: ${a.austrittAm||'-'}</li>`).join("")
+      : "<li>Keine passenden Austritte gefunden.</li>";
+
+  window._letzteGefilterteAustritte = list;
+}
+
+function exportiereAustrittePdf() {
+  const list = window._letzteGefilterteAustritte || [];
+  if (!list.length) { alert("Keine gefilterten Austritte vorhanden."); return; }
+
+  const doc = new jspdf.jsPDF();
+  doc.setFontSize(14);
+  doc.text("Austritte – Übersicht", 10, 10);
+
+  let y = 20;
+  list.forEach((a, i) => {
+    doc.text(`${i+1}. ${a.name} (${a.kategorie}${a.nummer?`, Spind ${a.nummer}`:''}) – Austritt: ${a.austrittAm||'-'}`, 10, y);
+    y += 8;
+    if (y > 285) { doc.addPage(); y = 20; }
+  });
+
+  doc.save("austritte_uebersicht.pdf");
 }
 
 
@@ -2153,29 +2222,38 @@ async function loadDataFromOneDrive() {
     }
 
     // Deduplizieren & übernehmen
-    mitarbeiterListe.length = 0;
-    mitarbeiterListe.push(...dedupeMitarbeiterListe(cloudList));
+// Deduplizieren & übernehmen
+mitarbeiterListe.length = 0;
+mitarbeiterListe.push(...dedupeMitarbeiterListe(cloudList));
 
-    // Persistieren
-    localStorage.setItem('bestand', JSON.stringify(bestand));
-    localStorage.setItem('history', JSON.stringify(history));
-    localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+// ⚡ NEU: Austritte übernehmen
+mitarbeiterAustritte = Array.isArray(data.mitarbeiterAustritte)
+  ? data.mitarbeiterAustritte
+  : (mitarbeiterAustritte || []);
 
-    // UI aktualisieren
-    updateBestandTabelle?.();
-    updateDashboard?.();
-    renderMitarbeiterTabelle?.();
-    updateMitarbeiterDatalist?.();
-    kategorieWechsel?.();
+// Persistieren
+localStorage.setItem('bestand', JSON.stringify(bestand));
+localStorage.setItem('history', JSON.stringify(history));
+localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+// ⚡ NEU: Austritte auch persistieren
+localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
 
-    alert("✅ Daten erfolgreich geladen");
-  } catch (e) {
-    console.error(e);
-    alert("❌ Fehler beim Laden\n" + (e.message || e));
-  } finally {
-    loadInProgress = false;
-  }
+// UI aktualisieren
+updateBestandTabelle?.();
+updateDashboard?.();
+renderMitarbeiterTabelle?.();
+updateMitarbeiterDatalist?.();
+kategorieWechsel?.();
+filterAustritte?.();   // ⚡ NEU: Austrittsliste aktualisieren
+
+alert("✅ Daten erfolgreich geladen");
+} catch (e) {
+  console.error(e);
+  alert("❌ Fehler beim Laden\n" + (e.message || e));
+} finally {
+  loadInProgress = false;
 }
+
 
 
 
@@ -2202,7 +2280,8 @@ async function saveDataToOneDrive() {
 
     // 🔒 Duplikate entfernen + Schema-Version mitschicken
     const clean = dedupeMitarbeiterListe(mitarbeiterListe);
-    const data = { schemaVersion: 1, bestand, history, mitarbeiterListe: clean };
+    const data = { schemaVersion: 1, bestand, history, mitarbeiterListe: clean, mitarbeiterAustritte };
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
     const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
