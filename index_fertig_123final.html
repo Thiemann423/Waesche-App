@@ -19,7 +19,8 @@
     cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true }
   };
 
-  const scopes = ["Files.ReadWrite", "offline_access", "openid", "profile", "User.Read"];
+  const scopes = ["Files.ReadWrite.All", "User.Read", "offline_access", "openid", "profile"];
+
 
   const msalInstance = new msal.PublicClientApplication(msalConfig);
 
