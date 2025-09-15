@@ -58,47 +58,67 @@
     return { driveId, folderId };
   }
 
-  async function getAccessToken() {
-    const request = { scopes };
-    let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+ async function getAccessToken() {
+  const request = { scopes };
+  let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
 
-    if (account) {
-      try {
-        const t = await msalInstance.acquireTokenSilent({ ...request, account });
-        return t.accessToken;
-      } catch (e) {
-        console.warn("Silent token failed:", e);
-      }
-    }
-
+  if (account) {
     try {
-      const login = await msalInstance.loginPopup(request);
-      msalInstance.setActiveAccount(login.account);
-      const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
+      const t = await msalInstance.acquireTokenSilent({ ...request, account });
       return t.accessToken;
     } catch (e) {
-      if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
-        msalInstance.loginRedirect(request); // Fallback wenn Popups blockiert sind
-        return;
-      }
-      throw e;
+      console.warn("Silent token failed:", e);
     }
   }
 
-  // Beim Laden: Redirect-Ergebnis verarbeiten + anmelden
-  window.addEventListener("DOMContentLoaded", async () => {
-    try {
-      const redirectResult = await msalInstance.handleRedirectPromise?.();
-      if (redirectResult?.account) {
-        msalInstance.setActiveAccount(redirectResult.account);
-      }
-      await getAccessToken();
-      console.log("✅ angemeldet");
-    } catch (e) {
-      console.error("❌ Login fehlgeschlagen", e);
-      alert(`❌ Anmeldung nicht möglich.\n${e.errorCode || e.name || ""}\n${e.errorMessage || e.message || ""}`);
+  try {
+    const login = await msalInstance.loginPopup(request);
+    msalInstance.setActiveAccount(login.account);
+    const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
+    return t.accessToken;
+  } catch (e) {
+    if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
+      msalInstance.loginRedirect(request); // Fallback wenn Popups blockiert sind
+      return;
     }
-  });
+    throw e;
+  }
+}
+
+// 👉 Hier einfügen:
+async function signOut() {
+  try {
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length) {
+      await msalInstance.logoutPopup({ account: accounts[0] });
+    }
+  } finally {
+    // App-Caches leeren
+    localStorage.removeItem("WAESCHE_DRIVE_ID");
+    localStorage.removeItem("WAESCHE_FOLDER_ID");
+    // optional: auch eigene Daten zurücksetzen
+    // localStorage.removeItem("bestand");
+    // localStorage.removeItem("history");
+    // localStorage.removeItem("artikelStamm");
+    location.reload();
+  }
+}
+
+// Ab hier dein EventListener
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const redirectResult = await msalInstance.handleRedirectPromise?.();
+    if (redirectResult?.account) {
+      msalInstance.setActiveAccount(redirectResult.account);
+    }
+    await getAccessToken();
+    console.log("✅ angemeldet");
+  } catch (e) {
+    console.error("❌ Login fehlgeschlagen", e);
+    alert(`❌ Anmeldung nicht möglich.\n${e.errorCode || e.name || ""}\n${e.errorMessage || e.message || ""}`);
+  }
+});
+
 </script>
 
 
@@ -317,7 +337,14 @@
   <h3>Speichern & Laden (OneDrive)</h3>
   <button onclick="saveDataToOneDrive()">In OneDrive speichern</button>
   <button onclick="loadDataFromOneDrive()">Aus OneDrive laden</button>
+  
+  <!-- 👉 Hier der neue Button -->
+  <button onclick="signOut()" style="margin-left: 10px; background-color: #fdd; border: 1px solid #f99;">
+    Abmelden / Konto wechseln
+  </button>
+
 </div>
+
 
 <h2>Mitarbeiter verwalten</h2>
 <button onclick="toggleMitarbeiterVerwaltung()" id="toggleMitarbeiterBtn">Mitarbeiterverwaltung anzeigen</button>
