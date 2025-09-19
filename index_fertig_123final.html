@@ -177,6 +177,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   /* schmale Eingabe beim Spind-Editieren in der Tabelle */
 #mitarbeiterTabelle .edit-spind { max-width: 7em; }
 
+  button[disabled]{ opacity:.6; cursor:not-allowed; }
+.is-busy::after{ content:" – wird gespeichert…"; font-style: italic; }
+
 </style>
 
 
@@ -263,8 +266,13 @@ window.addEventListener("DOMContentLoaded", async () => {
   <canvas id="sigAusgabe"></canvas>
   <button onclick="clearCanvas('sigAusgabe')">Löschen</button>
 
-  <button onclick="abschliessen()">Ausgabe abschließen & PDF speichern</button>
-  <button onclick="rueckgabeAbschliessen()">Rückgabe abschließen & PDF speichern</button>
+<button id="btnAusgabe" onclick="abschliessen(this)">
+  Ausgabe abschließen & PDF speichern
+</button>
+<button id="btnRueckgabe" onclick="rueckgabeAbschliessen(this)">
+  Rückgabe abschließen & PDF speichern
+</button>
+
 
  <h2>Bestand verwalten</h2>
 <button onclick="toggleBestandAnzeige()" id="toggleBestandBtn">Bestand anzeigen</button>
@@ -1095,75 +1103,86 @@ async function loginAndUploadPDF(fileBlob, dateiname = "Dateiname.pdf") {
 }
 
 
+let auftragBusy = false;
+
+function lockAction(btn){
+  if (auftragBusy) return false;       // schon in Arbeit → ignorieren
+  auftragBusy = true;
+  if (btn){ btn.disabled = true; btn.classList.add('is-busy'); }
+  // beide Buttons sicherheitshalber sperren:
+  document.getElementById('btnAusgabe')?.setAttribute('disabled','');
+  document.getElementById('btnRueckgabe')?.setAttribute('disabled','');
+  return true;
+}
+function unlockAction(btn){
+  auftragBusy = false;
+  if (btn){ btn.disabled = false; btn.classList.remove('is-busy'); }
+  document.getElementById('btnAusgabe')?.removeAttribute('disabled');
+  document.getElementById('btnRueckgabe')?.removeAttribute('disabled');
+}
 
 
 
-async function abschliessen() {
-  const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
-  const datum = document.getElementById("datum").value;
-  const bemerkung = document.getElementById("bemerkung").value;
-  const abteilung = document.getElementById("abteilung").value;
-  const kategorie = document.getElementById("kategorieSelect").value;
+async function abschliessen(btn){
+  if (!lockAction(btn)) { alert("⏳ Auftrag wird bereits gespeichert…"); return; }
+  try {
+    const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
+    const datum      = document.getElementById("datum").value;
+    const bemerkung  = document.getElementById("bemerkung").value;
+    const abteilung  = document.getElementById("abteilung").value;
+    const kategorie  = document.getElementById("kategorieSelect").value;
 
-  const ausgabeDetails = [];
+    const ausgabeDetails = [];
+    document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+      const artikelInput = div.querySelector(".artikelSuchfeld");
+      const groesse     = div.querySelector("select:nth-of-type(1)").value;
+      const inputAnzahl = div.querySelector("input[type='number']");
+      const artikelName = artikelInput.value;
+      const anzahl      = parseInt(inputAnzahl.value, 10) || 0;
 
-  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
-    const artikelInput = div.querySelector(".artikelSuchfeld");
-    const groesse = div.querySelector("select:nth-of-type(1)").value;
-    const inputAnzahl = div.querySelector("input[type='number']");
-    const artikelName = artikelInput.value;
-    const anzahl = parseInt(inputAnzahl.value, 10) || 0;
+      const nameKey = normalizeArtikelName(artikelName);
+      if (!nameKey || anzahl <= 0) return;
 
-    const nameKey = normalizeArtikelName(artikelName);
-    if (!nameKey || anzahl <= 0) return;
+      if (!bestand[nameKey]) bestand[nameKey] = {};
+      if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
+      const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
+      bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
 
-    if (!bestand[nameKey]) bestand[nameKey] = {};
-    if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
+      history.push({
+        datum: datum || new Date().toISOString().split("T")[0],
+        mitarbeiter: mitarbeiterName,
+        empfaenger: (kategorie === "produktion") ? `Produktion: ${abteilung || ""}` : (mitarbeiterName || ""),
+        artikel: artikelName,
+        groesse: groesse || "-",
+        anzahl,
+        typ: "ausgabe",
+        kategorie,
+        abteilung: abteilung || ""
+      });
 
-    const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
-    bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
+      ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
+    });
 
-history.push({
-  datum: datum || new Date().toISOString().split("T")[0],
-  mitarbeiter: mitarbeiterName,
-  empfaenger: (kategorie === "produktion")
-                ? `Produktion: ${abteilung || ""}`
-                : (mitarbeiterName || ""),
-  artikel: artikelName,
-  groesse: groesse || "-",
-  anzahl: anzahl,
-  typ: "ausgabe",
-  kategorie,
-  abteilung: abteilung || ""
-});
+    localStorage.setItem('bestand', JSON.stringify(bestand));
+    localStorage.setItem('history', JSON.stringify(history));
+    updateBestandTabelle();
+    updateDashboard();
 
+    await generatePDF(mitarbeiterName, datum, ausgabeDetails, bemerkung, abteilung, kategorie);
 
+    // Felder leeren und sauber beenden
+    document.getElementById("artikelContainer").innerHTML = "";
+    document.getElementById("bemerkung").value = "";
+    clearCanvas('sigMitarbeiter');
+    clearCanvas('sigAusgabe');
 
-    ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
-  });
-
-  localStorage.setItem('bestand', JSON.stringify(bestand));
-  localStorage.setItem('history', JSON.stringify(history));
-  updateBestandTabelle();
-  updateDashboard();
-
- try {
-  await generatePDF(mitarbeiterName, datum, ausgabeDetails, bemerkung, abteilung, kategorie);
-} catch (e) {
-
+    alert("✅ Ausgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
+    location.reload(); // entsperrt automatisch durch Reload
+  } catch (e) {
     console.error(e);
     alert("❌ PDF/Upload fehlgeschlagen.");
-    return; // kein Reload bei Fehler
+    unlockAction(btn); // nur bei Fehler wieder freigeben
   }
-
-  document.getElementById("artikelContainer").innerHTML = "";
-  document.getElementById("bemerkung").value = "";
-  clearCanvas('sigMitarbeiter');
-  clearCanvas('sigAusgabe');
-
-  alert("✅ Ausgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
-  location.reload();
-}
 
 
 
@@ -1326,69 +1345,63 @@ async function generateAustrittPDF(a) {
 
 
 
-async function rueckgabeAbschliessen() {
-  const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
-  const datum = document.getElementById("datum").value;
-  const abteilung = document.getElementById("abteilung").value;
-  const kategorie = document.getElementById("kategorieSelect").value;
-  const bemerkung = document.getElementById("bemerkung").value;
+async function rueckgabeAbschliessen(btn){
+  if (!lockAction(btn)) { alert("⏳ Auftrag wird bereits gespeichert…"); return; }
+  try {
+    const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
+    const datum      = document.getElementById("datum").value;
+    const abteilung  = document.getElementById("abteilung").value;
+    const kategorie  = document.getElementById("kategorieSelect").value;
+    const bemerkung  = document.getElementById("bemerkung").value;
 
-  const rueckgabeDetails = [];
+    const rueckgabeDetails = [];
+    document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
+      const artikelName = div.querySelector(".artikelSuchfeld").value;
+      const groesse     = div.querySelector("select:nth-of-type(1)").value;
+      const anzahl      = parseInt(div.querySelector("input[type='number']").value, 10) || 0;
 
-  document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
-    const artikelName = div.querySelector(".artikelSuchfeld").value;
-    const groesse = div.querySelector("select:nth-of-type(1)").value;
-    const anzahl = parseInt(div.querySelector("input[type='number']").value, 10) || 0;
+      const nameKey = normalizeArtikelName(artikelName);
+      if (!nameKey || anzahl <= 0) return;
 
-    const nameKey = normalizeArtikelName(artikelName);
-    if (!nameKey || anzahl <= 0) return;
+      if (!bestand[nameKey]) bestand[nameKey] = {};
+      if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
+      bestand[nameKey][groesse] += anzahl;
 
-    if (!bestand[nameKey]) bestand[nameKey] = {};
-    if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
+      history.push({
+        datum: datum || new Date().toISOString().split("T")[0],
+        mitarbeiter: mitarbeiterName,
+        empfaenger: (kategorie === "produktion") ? `Produktion: ${abteilung || ""}` : (mitarbeiterName || ""),
+        artikel: artikelName,
+        groesse: groesse || "-",
+        anzahl,
+        typ: "rueckgabe",
+        rueckgabe: true,
+        kategorie,
+        abteilung: abteilung || ""
+      });
 
-    // Bestand ERHÖHEN
-    bestand[nameKey][groesse] += anzahl;
-
-    // Historie als Rückgabe erfassen
-    history.push({
-      datum: datum || new Date().toISOString().split("T")[0],
-      mitarbeiter: mitarbeiterName,
-      empfaenger: (kategorie === "produktion")
-        ? `Produktion: ${abteilung || ""}`
-        : (mitarbeiterName || ""),
-      artikel: artikelName,
-      groesse: groesse || "-",
-      anzahl: anzahl,
-      typ: "rueckgabe",
-      rueckgabe: true,
-      kategorie,
-      abteilung: abteilung || ""
+      rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
     });
 
-    rueckgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
-  });
+    localStorage.setItem('bestand', JSON.stringify(bestand));
+    localStorage.setItem('history', JSON.stringify(history));
+    updateBestandTabelle();
+    updateDashboard();
 
-  localStorage.setItem('bestand', JSON.stringify(bestand));
-  localStorage.setItem('history', JSON.stringify(history));
-  updateBestandTabelle();
-  updateDashboard();
-
-  try {
     await generateRueckgabePDF(mitarbeiterName, datum, rueckgabeDetails, bemerkung, abteilung, kategorie);
+
+    document.getElementById("artikelContainer").innerHTML = "";
+    document.getElementById("bemerkung").value = "";
+    clearCanvas('sigMitarbeiter');
+    clearCanvas('sigAusgabe');
+
+    alert("✅ Rückgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
+    location.reload();
   } catch (e) {
     console.error(e);
     alert("❌ PDF/Upload fehlgeschlagen.");
-    return;
+    unlockAction(btn);
   }
-
-  document.getElementById("artikelContainer").innerHTML = "";
-  document.getElementById("bemerkung").value = "";
-  clearCanvas('sigMitarbeiter');
-  clearCanvas('sigAusgabe');
-
-  alert("✅ Rückgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
-  location.reload();
-}
 
 
 
