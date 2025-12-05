@@ -327,12 +327,17 @@ window.addEventListener("DOMContentLoaded", async () => {
 <div class="dashboard-container">
   <label>Mitarbeiter suchen:</label>
   <input type="text" id="dashboardSearch" oninput="filterDashboard()" placeholder="Name eingeben...">
+
+  <!-- NEU: Artikelsuche -->
+  <label>Artikel suchen:</label>
+  <input type="text" id="artikelSearch" oninput="filterDashboard()" placeholder="Artikel eingeben...">
   
   <label>Von:</label>
   <input type="date" id="startDate" oninput="filterDashboard()">
   
   <label>Bis:</label>
   <input type="date" id="endDate" oninput="filterDashboard()">
+
   
   <h3>Alle Ausgaben</h3>
 <table id="dashboardTabelle">
@@ -1829,9 +1834,11 @@ function updateDashboard() {
   const tbody = document.querySelector("#dashboardTabelle tbody");
   tbody.innerHTML = "";
 
-  const nameFilter = (document.getElementById("dashboardSearch").value || "").toLowerCase();
-  const startDate  = document.getElementById("startDate").value;
-  const endDate    = document.getElementById("endDate").value;
+  const nameFilter    = (document.getElementById("dashboardSearch").value || "").toLowerCase();
+  const artikelFilter = (document.getElementById("artikelSearch")?.value || "").toLowerCase();  // NEU
+  const startDate     = document.getElementById("startDate").value;
+  const endDate       = document.getElementById("endDate").value;
+
 
   let filteredHistory = Array.isArray(history) ? [...history] : [];
   if (!zeigeAlle) {
@@ -1854,6 +1861,11 @@ function updateDashboard() {
     if (nameFilter && !empfaenger.toLowerCase().includes(nameFilter)) return;
     if (startDate && entry.datum < startDate) return;
     if (endDate   && entry.datum > endDate)   return;
+
+        // NEU: Artikel-Filter (Basis ohne [Rückgabe]/[Verwurf])
+    const artikelBasis = (entry.artikel || "").toLowerCase();
+    if (artikelFilter && !artikelBasis.includes(artikelFilter)) return;
+
 
     // Art des Eintrags
     const isRueckgabe = !!entry.rueckgabe || entry.typ === "rueckgabe";
@@ -1922,28 +1934,37 @@ dashboardContainer.insertBefore(btnAlle, dashboardContainer.children[dashboardCo
 dashboardContainer.insertBefore(btn30, dashboardContainer.children[dashboardContainer.children.length - 1]);
 
 
-    function filterDashboard() {
-      const nameFilter = document.getElementById("dashboardSearch").value.toLowerCase();
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
+function filterDashboard() {
+  const nameFilter    = (document.getElementById("dashboardSearch").value || "").toLowerCase();
+  const artikelFilter = (document.getElementById("artikelSearch")?.value || "").toLowerCase();
+  const startDate     = document.getElementById("startDate").value;
+  const endDate       = document.getElementById("endDate").value;
 
-      const rows = document.querySelectorAll("#dashboardTabelle tbody tr");
-      rows.forEach(row => {
-        const mitarbeiter = row.children[1].innerText.toLowerCase();
-        const datum = row.children[0].innerText;
+  const rows = document.querySelectorAll("#dashboardTabelle tbody tr");
+  rows.forEach(row => {
+    const datum      = row.children[0].innerText;              // Spalte Datum
+    const mitarbeiter = row.children[1].innerText.toLowerCase(); // Spalte Empfänger
+    const artikel     = row.children[2].innerText.toLowerCase(); // Spalte Artikel
 
-        let show = mitarbeiter.includes(nameFilter);
+    let show = true;
 
-        if (startDate) {
-          show = show && (datum >= startDate);
-        }
-        if (endDate) {
-          show = show && (datum <= endDate);
-        }
-
-        row.style.display = show ? "" : "none";
-      });
+    if (nameFilter) {
+      show = show && mitarbeiter.includes(nameFilter);
     }
+    if (artikelFilter) {
+      show = show && artikel.includes(artikelFilter);
+    }
+    if (startDate) {
+      show = show && (datum >= startDate);
+    }
+    if (endDate) {
+      show = show && (datum <= endDate);
+    }
+
+    row.style.display = show ? "" : "none";
+  });
+}
+
 
 
 
