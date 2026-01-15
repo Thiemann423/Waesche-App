@@ -2339,6 +2339,13 @@ function renderMitarbeiterTabelle() {
 // === HIER EINSETZEN: Edit-Helfer ===
 function startEditSpind(idx, btn) {
   const tr = btn.closest('tr');
+
+  // ✅ NEU: Name editierbar machen (Spalte 0)
+  const nameTd = tr.children[0];
+  const curName = (nameTd.textContent || "").trim();
+  nameTd.innerHTML = `<input type="text" class="edit-name" value="${curName}">`;
+
+  // ✅ Spind editierbar machen (Spalte 1)
   const spindTd = tr.children[1];
   const kat = (tr.children[2].textContent || "").trim();
   const cur = (spindTd.textContent || "").trim();
@@ -2349,28 +2356,48 @@ function startEditSpind(idx, btn) {
             placeholder="${kat === 'maenner' ? 'z. B. 01' : 'z. B. 1'}"
             value="${value}">`;
 
+  // ✅ Buttons ändern
   tr.children[3].innerHTML = `
     <button onclick="saveSpind(${idx}, this)">Speichern</button>
     <button onclick="cancelEditSpind(this)">Abbrechen</button>
   `;
 }
 
+
 function saveSpind(idx, btn) {
   const tr = btn.closest('tr');
   const kat = (tr.children[2].textContent || "").trim();
-  const input = tr.querySelector('input.edit-spind');
 
-  let spind = (input.value || "").trim();
+  // ✅ NEU: Name mit speichern
+  const nameInput = tr.querySelector("input.edit-name");
+  const newName = (nameInput?.value || "").trim();
+  if (!newName) {
+    alert("❌ Name darf nicht leer sein.");
+    return;
+  }
+
+  const input = tr.querySelector("input.edit-spind");
+
+  let spind = (input?.value || "").trim();
   spind = spind ? spind.replace(/\D/g, "") : "";
   if (kat === "maenner" && spind && !/^0/.test(spind)) spind = "0" + spind;
 
-  if (spind && mitarbeiterListe.some((m, i) =>
-      i !== idx && m.kategorie === kat && normSpind(m.nummer) === normSpind(spind))) {
+  if (
+    spind &&
+    mitarbeiterListe.some(
+      (m, i) => i !== idx && m.kategorie === kat && normSpind(m.nummer) === normSpind(spind)
+    )
+  ) {
     alert("❌ Diese Spindnummer ist in dieser Kategorie bereits vergeben.");
     return;
   }
 
+  // ✅ NEU: Name übernehmen
+  mitarbeiterListe[idx].name = newName;
+
+  // Spind übernehmen
   mitarbeiterListe[idx].nummer = spind;
+
   localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
 
   renderMitarbeiterTabelle();
@@ -2378,8 +2405,9 @@ function saveSpind(idx, btn) {
   kategorieWechsel();
   zeigeFreieSpindnummern?.();
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
-  alert("✅ Spind gespeichert.");
+  alert("✅ Spind & Name gespeichert.");
 }
+
 
 function cancelEditSpind(btn) {
   renderMitarbeiterTabelle();
