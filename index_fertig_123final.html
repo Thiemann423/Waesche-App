@@ -872,6 +872,43 @@ artikel.sort((a, b) => a.name.localeCompare(b.name));
     let bestand = JSON.parse(localStorage.getItem('bestand')) || {};
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let artikelStamm = JSON.parse(localStorage.getItem('artikelStamm')) || {};
+// === Alias-System für Mitarbeiternamen ===
+const ALIAS_KEY = "nameAliases";
+let nameAliases = JSON.parse(localStorage.getItem(ALIAS_KEY) || "{}");
+
+// entfernt z.B. "Max Mustermann (045)" -> "Max Mustermann"
+function canonicalName(raw) {
+  return String(raw || "")
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// löst Alias-Ketten auf: "Meyer Ana" -> "Meier Ana" -> ...
+function resolveAlias(rawName) {
+  let n = canonicalName(rawName);
+  const seen = new Set();
+  while (nameAliases[n] && !seen.has(n)) {
+    seen.add(n);
+    n = nameAliases[n];
+  }
+  return n;
+}
+
+// speichert Alias + aktualisiert evtl. ältere Verweise
+function addAlias(oldName, newName) {
+  const from = canonicalName(oldName);
+  const to = canonicalName(newName);
+  if (!from || !to || from === to) return;
+
+  // wer schon auf "from" gezeigt hat, soll künftig auf "to" zeigen
+  Object.keys(nameAliases).forEach(k => {
+    if (nameAliases[k] === from) nameAliases[k] = to;
+  });
+
+  nameAliases[from] = to;
+  localStorage.setItem(ALIAS_KEY, JSON.stringify(nameAliases));
+}
     
 function normalizeArtikelName(n) {
   return (n || "")
@@ -1839,7 +1876,6 @@ function updateDashboard() {
   const startDate     = document.getElementById("startDate").value;
   const endDate       = document.getElementById("endDate").value;
 
-
   let filteredHistory = Array.isArray(history) ? [...history] : [];
   if (!zeigeAlle) {
     const heute = new Date();
@@ -1853,19 +1889,26 @@ function updateDashboard() {
 
   filteredHistory.forEach(entry => {
     // Empfänger: bevorzugt gespeichertes Feld, sonst sauberer Fallback
-    const empfaenger =
+    const empfaengerRaw =
       (entry.empfaenger && String(entry.empfaenger).trim()) ||
-      (entry.kategorie === "produktion" ? `Produktion: ${entry.abteilung || ""}` : (entry.mitarbeiter || ""));
+      (entry.kategorie === "produktion"
+        ? `Produktion: ${entry.abteilung || ""}`
+        : (entry.mitarbeiter || ""));
+
+    // ✅ Alias nur für echte Personen anwenden (Produktion bleibt wie sie ist)
+    const empfaenger =
+      (entry.kategorie === "produktion")
+        ? empfaengerRaw
+        : resolveAlias(empfaengerRaw);
 
     // Filter anwenden
     if (nameFilter && !empfaenger.toLowerCase().includes(nameFilter)) return;
     if (startDate && entry.datum < startDate) return;
     if (endDate   && entry.datum > endDate)   return;
 
-        // NEU: Artikel-Filter (Basis ohne [Rückgabe]/[Verwurf])
+    // Artikel-Filter
     const artikelBasis = (entry.artikel || "").toLowerCase();
     if (artikelFilter && !artikelBasis.includes(artikelFilter)) return;
-
 
     // Art des Eintrags
     const isRueckgabe = !!entry.rueckgabe || entry.typ === "rueckgabe";
@@ -1891,6 +1934,7 @@ function updateDashboard() {
     tbody.appendChild(row);
   });
 }
+
 
 function migriereHistorieLabel() {
   if (!Array.isArray(history)) return;
@@ -2368,13 +2412,16 @@ function saveSpind(idx, btn) {
   const tr = btn.closest('tr');
   const kat = (tr.children[2].textContent || "").trim();
 
-  // ✅ NEU: Name mit speichern
+  // ✅ Name lesen
   const nameInput = tr.querySelector("input.edit-name");
   const newName = (nameInput?.value || "").trim();
   if (!newName) {
     alert("❌ Name darf nicht leer sein.");
     return;
   }
+
+  // ✅ alter Name (für Alias)
+  const oldName = (mitarbeiterListe[idx]?.name || "").trim();
 
   const input = tr.querySelector("input.edit-spind");
 
@@ -2392,10 +2439,13 @@ function saveSpind(idx, btn) {
     return;
   }
 
-  // ✅ NEU: Name übernehmen
-  mitarbeiterListe[idx].name = newName;
+  // ✅ Alias speichern, falls Name geändert wurde
+  if (oldName && oldName !== newName) {
+    addAlias(oldName, newName);
+  }
 
-  // Spind übernehmen
+  // ✅ Name + Spind übernehmen
+  mitarbeiterListe[idx].name = newName;
   mitarbeiterListe[idx].nummer = spind;
 
   localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
@@ -2404,9 +2454,11 @@ function saveSpind(idx, btn) {
   updateMitarbeiterDatalist();
   kategorieWechsel();
   zeigeFreieSpindnummern?.();
+
   if (typeof saveDataToOneDrive === "function") saveDataToOneDrive();
   alert("✅ Spind & Name gespeichert.");
 }
+
 
 
 function cancelEditSpind(btn) {
@@ -2458,6 +2510,8 @@ async function loadDataFromOneDrive() {
     // Bestand & Historie
     bestand = data.bestand || {};
     history = data.history || [];
+nameAliases = data.nameAliases || {};
+localStorage.setItem(ALIAS_KEY, JSON.stringify(nameAliases));
 
     migriereHistorieLabel();
 
@@ -2534,7 +2588,8 @@ async function saveDataToOneDrive() {
 
     // 🔒 Duplikate entfernen + Schema-Version mitschicken
     const clean = dedupeMitarbeiterListe(mitarbeiterListe);
-    const data = { schemaVersion: 1, bestand, history, mitarbeiterListe: clean, mitarbeiterAustritte };
+   const data = { schemaVersion: 1, bestand, history, mitarbeiterListe: clean, mitarbeiterAustritte, nameAliases };
+
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
