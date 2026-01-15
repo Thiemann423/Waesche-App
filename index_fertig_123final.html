@@ -1890,16 +1890,16 @@ function updateDashboard() {
   filteredHistory.forEach(entry => {
     // Empfänger: bevorzugt gespeichertes Feld, sonst sauberer Fallback
     const empfaengerRaw =
-      (entry.empfaenger && String(entry.empfaenger).trim()) ||
-      (entry.kategorie === "produktion"
-        ? `Produktion: ${entry.abteilung || ""}`
-        : (entry.mitarbeiter || ""));
+  (entry.empfaenger && String(entry.empfaenger).trim()) ||
+  (entry.kategorie === "produktion"
+    ? `Produktion: ${entry.abteilung || ""}`
+    : (entry.mitarbeiter || ""));
 
-    // ✅ Alias nur für echte Personen anwenden (Produktion bleibt wie sie ist)
-    const empfaenger =
-      (entry.kategorie === "produktion")
-        ? empfaengerRaw
-        : resolveAlias(empfaengerRaw);
+const empfaenger =
+  (entry.kategorie === "produktion")
+    ? empfaengerRaw
+    : resolveAlias(empfaengerRaw);
+
 
     // Filter anwenden
     if (nameFilter && !empfaenger.toLowerCase().includes(nameFilter)) return;
@@ -2440,9 +2440,10 @@ function saveSpind(idx, btn) {
   }
 
   // ✅ Alias speichern, falls Name geändert wurde
-  if (oldName && oldName !== newName) {
-    addAlias(oldName, newName);
-  }
+if (canonicalName(oldName) !== canonicalName(newName)) {
+  addAlias(oldName, newName);
+}
+
 
   // ✅ Name + Spind übernehmen
   mitarbeiterListe[idx].name = newName;
