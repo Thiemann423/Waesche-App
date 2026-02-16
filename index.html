@@ -2716,13 +2716,50 @@ function filterMitarbeiterTabelle() {
 
 let loadInProgress = false; // global definieren
 
-async function loadDataFromOneDrive()
+async function loadDataFromOneDrive() {
+  if (loadInProgress) return;
+  loadInProgress = true;
+
+  try {
+    const accessToken = await getAccessToken();
+    if (!accessToken) throw new Error("Nicht angemeldet.");
+
+    // 1) IDs holen (normal)
+    let { driveId, folderId } = await ensureTargetIds(false);
+
+    const makeUrl = (dId, fId) =>
+      `https://graph.microsoft.com/v1.0/drives/${dId}/items/${fId}:/bestand.json:/content`;
+
+    let url = makeUrl(driveId, folderId);
+    let res = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    // 2) Falls Zugriff verweigert: Cache löschen + neu auflösen + nochmal versuchen
+    if (res.status === 401 || res.status === 403) {
+      ({ driveId, folderId } = await ensureTargetIds(true));
+      url = makeUrl(driveId, folderId);
+      res = await fetch(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+    }
+
+    if (res.status === 404) {
+      alert("ℹ️ 'bestand.json' wurde noch nicht angelegt – es gibt noch keine Cloud-Daten.");
+      return;
+    }
+    if (!res.ok) throw new Error(await res.text());
+
+    const data = await res.json();
 
     // Bestand & Historie
     bestand = data.bestand || {};
     history = data.history || [];
-nameAliases = data.nameAliases || {};
-localStorage.setItem(ALIAS_KEY, JSON.stringify(nameAliases));
+
+    nameAliases = data.nameAliases || {};
+    localStorage.setItem(ALIAS_KEY, JSON.stringify(nameAliases));
 
     migriereHistorieLabel();
 
@@ -2741,38 +2778,37 @@ localStorage.setItem(ALIAS_KEY, JSON.stringify(nameAliases));
     }
 
     // Deduplizieren & übernehmen
-// Deduplizieren & übernehmen
-mitarbeiterListe.length = 0;
-mitarbeiterListe.push(...dedupeMitarbeiterListe(cloudList));
+    mitarbeiterListe.length = 0;
+    mitarbeiterListe.push(...dedupeMitarbeiterListe(cloudList));
 
-// ⚡ NEU: Austritte übernehmen
-mitarbeiterAustritte = Array.isArray(data.mitarbeiterAustritte)
-  ? data.mitarbeiterAustritte
-  : (mitarbeiterAustritte || []);
+    // Austritte übernehmen
+    mitarbeiterAustritte = Array.isArray(data.mitarbeiterAustritte)
+      ? data.mitarbeiterAustritte
+      : (mitarbeiterAustritte || []);
 
-// Persistieren
-localStorage.setItem('bestand', JSON.stringify(bestand));
-localStorage.setItem('history', JSON.stringify(history));
-localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
-// ⚡ NEU: Austritte auch persistieren
-localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
+    // Persistieren
+    localStorage.setItem("bestand", JSON.stringify(bestand));
+    localStorage.setItem("history", JSON.stringify(history));
+    localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
+    localStorage.setItem(EXIT_KEY, JSON.stringify(mitarbeiterAustritte));
 
-// UI aktualisieren
-updateBestandTabelle?.();
-updateDashboard?.();
-renderMitarbeiterTabelle?.();
-updateMitarbeiterDatalist?.();
-kategorieWechsel?.();
-filterAustritte?.();   // ⚡ NEU: Austrittsliste aktualisieren
+    // UI aktualisieren
+    updateBestandTabelle?.();
+    updateDashboard?.();
+    renderMitarbeiterTabelle?.();
+    updateMitarbeiterDatalist?.();
+    kategorieWechsel?.();
+    filterAustritte?.();
 
-alert("✅ Daten erfolgreich geladen");
-} catch (e) {
-  console.error(e);
-  alert("❌ Fehler beim Laden\n" + (e.message || e));
-} finally {
-  loadInProgress = false;
+    alert("✅ Daten erfolgreich geladen");
+  } catch (e) {
+    console.error(e);
+    alert("❌ Fehler beim Laden\n" + (e.message || e));
+  } finally {
+    loadInProgress = false;
+  }
 }
-}
+
 
 
 
