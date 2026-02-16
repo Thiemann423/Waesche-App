@@ -244,7 +244,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   <datalist id="mitarbeiterListe"></datalist>
 
   <label>Spindnummer suchen:</label>
-  <input id="idInput" placeholder="z. B. 012 oder 12" oninput="sucheNachID()">
+  <input id="idInput" placeholder="z. B. 012 oder 12" oninput="sucheNachID()">
 
   <label>Abteilung:</label>
   <input id="abteilung">
@@ -258,6 +258,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   <label>Bemerkung:</label>
   <textarea id="bemerkung"></textarea>
 
+  <!-- NEU: Altbestand-Modus (keine Bestandsreduktion, im PDF sichtbar) -->
+  <label style="display:flex; gap:8px; align-items:center; margin: 12px 0;">
+    <input type="checkbox" id="altbestandMode">
+    NACHERFASSUNG / Altbestand (Bestand NICHT verändern)
+  </label>
+
   <h3>Unterschrift Mitarbeiter</h3>
   <canvas id="sigMitarbeiter"></canvas>
   <button onclick="clearCanvas('sigMitarbeiter')">Löschen</button>
@@ -266,16 +272,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   <canvas id="sigAusgabe"></canvas>
   <button onclick="clearCanvas('sigAusgabe')">Löschen</button>
 
-<button id="btnAusgabe" onclick="abschliessen(this)">
-  Ausgabe abschließen & PDF speichern
-</button>
-<button id="btnRueckgabe" onclick="rueckgabeAbschliessen(this)">
-  Rückgabe abschließen & PDF speichern
-</button>
-<!-- NEU: Verwurf-Button -->
-<button id="btnVerwurf" onclick="verwurfAbschliessen(this)">
-  Verwurf (kaputt / verworfen) & PDF speichern
-</button>
+  <button id="btnAusgabe" onclick="abschliessen(this)">
+    Ausgabe abschließen & PDF speichern
+  </button>
+  <button id="btnRueckgabe" onclick="rueckgabeAbschliessen(this)">
+    Rückgabe abschließen & PDF speichern
+  </button>
+  <!-- NEU: Verwurf-Button -->
+  <button id="btnVerwurf" onclick="verwurfAbschliessen(this)">
+    Verwurf (kaputt / verworfen) & PDF speichern
+  </button>
+
 
 
 
