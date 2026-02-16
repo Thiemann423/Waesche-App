@@ -2783,16 +2783,14 @@ alert("✅ Daten erfolgreich geladen");
 
 let loginInProgress = false; // global definieren, außerhalb der Funktion
 
-// ↓↓↓ speichern
+let saveInProgress = false; // global
+
 async function saveDataToOneDrive() {
-  if (loginInProgress) return;
-  loginInProgress = true;
+  if (saveInProgress) return;
+  saveInProgress = true;
 
   try {
-    const accessToken = await getAccessToken();
-    if (!accessToken) throw new Error("Nicht angemeldet.");
-
-    // 🔒 Duplikate entfernen + Schema-Version mitschicken
+    // 1) Daten vorbereiten
     const clean = dedupeMitarbeiterListe(mitarbeiterListe);
     const data = {
       schemaVersion: 1,
@@ -2805,32 +2803,44 @@ async function saveDataToOneDrive() {
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
-    // 1) Normal versuchen
-    let { driveId, folderId } = await ensureTargetIds(false);
-    let url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
+    // 2) Helper: ein Versuch (optional forceRefresh für IDs)
+    const tryOnce = async (forceRefreshIds = false) => {
+      const accessToken = await getAccessToken();
+      const { driveId, folderId } = await ensureTargetIds(forceRefreshIds);
 
-    let r = await fetch(url, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: blob
-    });
+      const url =
+        `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content` +
+        `?@microsoft.graph.conflictBehavior=replace`;
 
-    // 2) Falls Zugriff verweigert: Cache löschen + neu auflösen + nochmal versuchen
-    if (r.status === 401 || r.status === 403) {
-      console.warn("⚠️ accessDenied beim Speichern – versuche Cache-Refresh…");
-      ({ driveId, folderId } = await ensureTargetIds(true));
-
-      url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
-      r = await fetch(url, {
+      const r = await fetch(url, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
         body: blob
       });
+
+      return r;
+    };
+
+    // 3) Erster Versuch
+    let r = await tryOnce(false);
+
+    // 4) Wenn accessDenied/401/403 → Cache reset + einmal neu versuchen
+    if (!r.ok && (r.status === 401 || r.status === 403)) {
+      console.warn("Save got", r.status, "-> retry with refreshed IDs");
+      // wichtig: IDs wegwerfen, neu aus Share-Link auflösen
+      localStorage.removeItem("WAESCHE_DRIVE_ID");
+      localStorage.removeItem("WAESCHE_FOLDER_ID");
+
+      // Retry (forceRefreshIds = true)
+      r = await tryOnce(true);
     }
 
     if (!r.ok) {
       const txt = await r.text().catch(() => "");
-      throw new Error(txt || `HTTP ${r.status}`);
+      throw new Error(`OneDrive Save failed (${r.status})\n${txt}`);
     }
 
     alert("✅ Daten gespeichert!");
@@ -2838,9 +2848,10 @@ async function saveDataToOneDrive() {
     console.error(e);
     alert("❌ Fehler beim Speichern\n" + (e.message || e));
   } finally {
-    loginInProgress = false;
+    saveInProgress = false;
   }
 }
+
 
 async function saveAustritteToOneDrive() {
   try {
