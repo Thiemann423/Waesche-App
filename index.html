@@ -93,10 +93,8 @@ async function getAccessToken() {
   tokenInProgress = (async () => {
     const request = { scopes };
 
-    // Active account bevorzugen
+    // Active account bevorzugen / setzen wenn genau 1 Konto vorhanden ist
     let account = msalInstance.getActiveAccount();
-
-    // Wenn genau ein Konto vorhanden ist: setzen
     if (!account) {
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length === 1) {
@@ -105,24 +103,33 @@ async function getAccessToken() {
       }
     }
 
-    // Silent zuerst
+    // 1) Silent versuchen
     if (account) {
       try {
         const t = await msalInstance.acquireTokenSilent({ ...request, account });
         return t.accessToken;
       } catch (e) {
         console.warn("Silent token failed:", e);
+        // дальше unten interaktiv
       }
     }
 
-    // Interaktiv – aber sicher (nur 1x, dank Lock)
-    const t = await msalInstance.acquireTokenPopup({
-      ...request,
-      prompt: "select_account"
-    });
-
-    msalInstance.setActiveAccount(t.account);
-    return t.accessToken;
+    // 2) Interaktiv – Consent erzwingen (wichtig nach Scope-Änderungen!)
+    try {
+      const t = await msalInstance.acquireTokenPopup({
+        ...request,
+        prompt: "consent"   // <- wichtig!
+      });
+      msalInstance.setActiveAccount(t.account);
+      return t.accessToken;
+    } catch (e) {
+      // Popup blockiert? -> Redirect Fallback
+      if (e?.errorCode === "popup_window_error" || e?.errorCode === "popup_window_open_error") {
+        await msalInstance.acquireTokenRedirect({ ...request, prompt: "consent" });
+        return null; // redirect läuft
+      }
+      throw e;
+    }
   })();
 
   try {
@@ -135,7 +142,7 @@ async function getAccessToken() {
 
 
 
-// 👉 Hier einfügen:
+
 async function signOut() {
   try {
     const accounts = msalInstance.getAllAccounts();
@@ -146,13 +153,15 @@ async function signOut() {
     // App-Caches leeren
     localStorage.removeItem("WAESCHE_DRIVE_ID");
     localStorage.removeItem("WAESCHE_FOLDER_ID");
-    // optional: auch eigene Daten zurücksetzen
-    // localStorage.removeItem("bestand");
-    // localStorage.removeItem("history");
-    // localStorage.removeItem("artikelStamm");
+
+    // optional: MSAL Cache sauber halten (hilft bei "altem Token")
+    // sessionStorage.clear();
+    // localStorage.clear(); // nur wenn du wirklich ALLES wegwerfen willst
+
     location.reload();
   }
 }
+
 
 // Ab hier dein EventListener
 window.addEventListener("DOMContentLoaded", async () => {
