@@ -58,32 +58,51 @@
     return { driveId, folderId };
   }
 
- async function getAccessToken() {
-  const request = { scopes };
-  let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+let tokenInFlight = null;
 
-  if (account) {
+async function getAccessToken() {
+  // Wenn bereits ein Token-Request läuft: darauf warten statt neu starten
+  if (tokenInFlight) return tokenInFlight;
+
+  tokenInFlight = (async () => {
+    const request = { scopes };
+    let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+
+    // 1) Erst silent versuchen
+    if (account) {
+      try {
+        const t = await msalInstance.acquireTokenSilent({ ...request, account });
+        return t.accessToken;
+      } catch (e) {
+        console.warn("Silent token failed:", e);
+      }
+    }
+
+    // 2) Dann interaktiv
     try {
-      const t = await msalInstance.acquireTokenSilent({ ...request, account });
+      const login = await msalInstance.loginPopup(request);
+      msalInstance.setActiveAccount(login.account);
+
+      const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
       return t.accessToken;
     } catch (e) {
-      console.warn("Silent token failed:", e);
+      // Popup blockiert → Redirect
+      if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
+        await msalInstance.loginRedirect(request);
+        // nach redirect kommt man nicht direkt hierher zurück
+        return null;
+      }
+      throw e;
     }
-  }
+  })();
 
   try {
-    const login = await msalInstance.loginPopup(request);
-    msalInstance.setActiveAccount(login.account);
-    const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
-    return t.accessToken;
-  } catch (e) {
-    if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
-      msalInstance.loginRedirect(request); // Fallback wenn Popups blockiert sind
-      return;
-    }
-    throw e;
+    return await tokenInFlight;
+  } finally {
+    tokenInFlight = null; // Lock wieder freigeben
   }
 }
+
 
 // 👉 Hier einfügen:
 async function signOut() {
