@@ -69,14 +69,13 @@ async function ensureTargetIds() {
 let tokenInFlight = null;
 
 async function getAccessToken() {
-  // Wenn bereits ein Token-Request läuft: darauf warten statt neu starten
   if (tokenInFlight) return tokenInFlight;
 
   tokenInFlight = (async () => {
     const request = { scopes };
     let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
 
-    // 1) Erst silent versuchen
+    // 1) silent versuchen
     if (account) {
       try {
         const t = await msalInstance.acquireTokenSilent({ ...request, account });
@@ -86,7 +85,7 @@ async function getAccessToken() {
       }
     }
 
-    // 2) Dann interaktiv
+    // 2) interaktiv
     try {
       const login = await msalInstance.loginPopup(request);
       msalInstance.setActiveAccount(login.account);
@@ -94,11 +93,9 @@ async function getAccessToken() {
       const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
       return t.accessToken;
     } catch (e) {
-      // Popup blockiert → Redirect
       if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
         await msalInstance.loginRedirect(request);
-        // nach redirect kommt man nicht direkt hierher zurück
-        return null;
+        return null; // nach Redirect geht’s nicht direkt weiter
       }
       throw e;
     }
@@ -107,9 +104,10 @@ async function getAccessToken() {
   try {
     return await tokenInFlight;
   } finally {
-    tokenInFlight = null; // Lock wieder freigeben
+    tokenInFlight = null;
   }
 }
+
 
 
 // 👉 Hier einfügen:
