@@ -46,11 +46,13 @@ async function ensureTargetIds() {
   const token = "u!" + b64u(SHARE_URL);
 
   const r = await fetch(
-    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) + "/driveItem?$select=id,parentReference",
+    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) +
+    "/driveItem?$select=id,parentReference",
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
   if (!r.ok) {
+    // ✅ Cache weg, damit es beim nächsten Mal sauber neu auflöst
     localStorage.removeItem("WAESCHE_DRIVE_ID");
     localStorage.removeItem("WAESCHE_FOLDER_ID");
     throw new Error(await r.text());
@@ -64,6 +66,7 @@ async function ensureTargetIds() {
   localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
   return { driveId, folderId };
 }
+
 
 
 let tokenInFlight = null;
