@@ -54,6 +54,9 @@ function b64u(str) {
 
 
 
+// Ordnerpfad in deinem OneDrive:
+const WAESCHE_FOLDER_PATH = "/Whiteboards/WaescheApp";
+
 async function ensureTargetIds(forceRefresh = false) {
   if (forceRefresh) {
     localStorage.removeItem("WAESCHE_DRIVE_ID");
@@ -67,40 +70,34 @@ async function ensureTargetIds(forceRefresh = false) {
   const accessToken = await getAccessToken();
   if (!accessToken) throw new Error("Nicht angemeldet.");
 
-  const shareId = "u!" + b64u(SHARE_URL);
+  // 1) Drive-ID holen
+  const meDriveRes = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!meDriveRes.ok) throw new Error(await meDriveRes.text());
+  const meDrive = await meDriveRes.json();
+  driveId = meDrive.id;
 
-  const r = await fetch(
-    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(shareId) + "/driveItem?$select=id,parentReference",
+  // 2) Ordner-ID über Pfad holen
+  const folderRes = await fetch(
+    `https://graph.microsoft.com/v1.0/me/drive/root:${WAESCHE_FOLDER_PATH}?$select=id`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
-  if (!r.ok) {
-    const txt = await r.text().catch(() => "");
-    // ✅ WICHTIG: Cache weg, damit beim nächsten Versuch sauber neu aufgelöst wird
-    localStorage.removeItem("WAESCHE_DRIVE_ID");
-    localStorage.removeItem("WAESCHE_FOLDER_ID");
-
-    // Bei 401/403 lohnt sich ein “force refresh” Versuch mit neuem Token/Account
-    if (r.status === 401 || r.status === 403) {
-      throw new Error(`ensureTargetIds accessDenied (${r.status}). Bitte abmelden/neu anmelden.\n${txt}`);
-    }
-    throw new Error(`ensureTargetIds failed (${r.status}).\n${txt}`);
+  if (!folderRes.ok) {
+    const txt = await folderRes.text().catch(() => "");
+    throw new Error(`Ordner nicht gefunden oder kein Zugriff: ${WAESCHE_FOLDER_PATH}\n${txt}`);
   }
 
-  const item = await r.json();
-  driveId  = item?.parentReference?.driveId;
-  folderId = item?.id;
-
-  if (!driveId || !folderId) {
-    localStorage.removeItem("WAESCHE_DRIVE_ID");
-    localStorage.removeItem("WAESCHE_FOLDER_ID");
-    throw new Error("Konnte driveId/folderId nicht ermitteln (shareLink).");
-  }
+  const folder = await folderRes.json();
+  folderId = folder.id;
 
   localStorage.setItem("WAESCHE_DRIVE_ID", driveId);
   localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
+
   return { driveId, folderId };
 }
+
 
 
 
