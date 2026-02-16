@@ -35,28 +35,36 @@
 
   function b64u(s){ return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 
-  async function ensureTargetIds() {
-    let driveId  = localStorage.getItem("WAESCHE_DRIVE_ID");
-    let folderId = localStorage.getItem("WAESCHE_FOLDER_ID");
-    if (driveId && folderId) return { driveId, folderId };
+async function ensureTargetIds() {
+  let driveId  = localStorage.getItem("WAESCHE_DRIVE_ID");
+  let folderId = localStorage.getItem("WAESCHE_FOLDER_ID");
+  if (driveId && folderId) return { driveId, folderId };
 
-    const accessToken = await getAccessToken();
-    const token = "u!" + b64u(SHARE_URL);
-    const r = await fetch(
-      "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) +
-      "/driveItem?$select=id,parentReference",
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!r.ok) throw new Error(await r.text());
-    const item = await r.json();
+  const accessToken = await getAccessToken();
+  if (!accessToken) throw new Error("Nicht angemeldet (Redirect läuft).");
 
-    driveId  = item.parentReference.driveId;
-    folderId = item.id;
+  const token = "u!" + b64u(SHARE_URL);
 
-    localStorage.setItem("WAESCHE_DRIVE_ID", driveId);
-    localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
-    return { driveId, folderId };
+  const r = await fetch(
+    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) + "/driveItem?$select=id,parentReference",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  if (!r.ok) {
+    localStorage.removeItem("WAESCHE_DRIVE_ID");
+    localStorage.removeItem("WAESCHE_FOLDER_ID");
+    throw new Error(await r.text());
   }
+
+  const item = await r.json();
+  driveId  = item.parentReference.driveId;
+  folderId = item.id;
+
+  localStorage.setItem("WAESCHE_DRIVE_ID", driveId);
+  localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
+  return { driveId, folderId };
+}
+
 
 let tokenInFlight = null;
 
