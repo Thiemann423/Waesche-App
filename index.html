@@ -43,45 +43,65 @@
   }
 
 function b64u(str) {
-  // robust für Unicode/URLs
   const bytes = new TextEncoder().encode(str);
   let binary = "";
   bytes.forEach(b => binary += String.fromCharCode(b));
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 
-async function ensureTargetIds() {
+
+async function ensureTargetIds(forceRefresh = false) {
+  if (forceRefresh) {
+    localStorage.removeItem("WAESCHE_DRIVE_ID");
+    localStorage.removeItem("WAESCHE_FOLDER_ID");
+  }
+
   let driveId  = localStorage.getItem("WAESCHE_DRIVE_ID");
   let folderId = localStorage.getItem("WAESCHE_FOLDER_ID");
   if (driveId && folderId) return { driveId, folderId };
 
   const accessToken = await getAccessToken();
-  if (!accessToken) throw new Error("Nicht angemeldet (Redirect läuft).");
+  if (!accessToken) throw new Error("Nicht angemeldet.");
 
-  const token = "u!" + b64u(SHARE_URL);
+  const shareId = "u!" + b64u(SHARE_URL);
 
   const r = await fetch(
-    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(token) +
-    "/driveItem?$select=id,parentReference",
+    "https://graph.microsoft.com/v1.0/shares/" + encodeURIComponent(shareId) + "/driveItem?$select=id,parentReference",
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
   if (!r.ok) {
-    // ✅ Cache weg, damit es beim nächsten Mal sauber neu auflöst
+    const txt = await r.text().catch(() => "");
+    // ✅ WICHTIG: Cache weg, damit beim nächsten Versuch sauber neu aufgelöst wird
     localStorage.removeItem("WAESCHE_DRIVE_ID");
     localStorage.removeItem("WAESCHE_FOLDER_ID");
-    throw new Error(await r.text());
+
+    // Bei 401/403 lohnt sich ein “force refresh” Versuch mit neuem Token/Account
+    if (r.status === 401 || r.status === 403) {
+      throw new Error(`ensureTargetIds accessDenied (${r.status}). Bitte abmelden/neu anmelden.\n${txt}`);
+    }
+    throw new Error(`ensureTargetIds failed (${r.status}).\n${txt}`);
   }
 
   const item = await r.json();
-  driveId  = item.parentReference.driveId;
-  folderId = item.id;
+  driveId  = item?.parentReference?.driveId;
+  folderId = item?.id;
+
+  if (!driveId || !folderId) {
+    localStorage.removeItem("WAESCHE_DRIVE_ID");
+    localStorage.removeItem("WAESCHE_FOLDER_ID");
+    throw new Error("Konnte driveId/folderId nicht ermitteln (shareLink).");
+  }
 
   localStorage.setItem("WAESCHE_DRIVE_ID", driveId);
   localStorage.setItem("WAESCHE_FOLDER_ID", folderId);
   return { driveId, folderId };
 }
+
 
 
 
@@ -2696,27 +2716,7 @@ function filterMitarbeiterTabelle() {
 
 let loadInProgress = false; // global definieren
 
-async function loadDataFromOneDrive() {
-  if (loadInProgress) return;
-  loadInProgress = true;
-
-  try {
-    const accessToken = await getAccessToken();
-    const { driveId, folderId } = await ensureTargetIds();
-
-    const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content`;
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-
-    if (res.status === 404) {
-      alert("ℹ️ 'bestand.json' wurde noch nicht angelegt – es gibt noch keine Cloud-Daten.");
-      return;
-    }
-    if (!res.ok) throw new Error(await res.text());
-
-    const data = await res.json();
+async function loadDataFromOneDrive()
 
     // Bestand & Historie
     bestand = data.bestand || {};
@@ -2789,30 +2789,50 @@ async function saveDataToOneDrive() {
   loginInProgress = true;
 
   try {
-    // Optional aber sinnvoll: lokal gleich aufgeräumt halten
-    // (falls du das woanders schon machst, kann diese Zeile auch weg)
-    // mitarbeiterListe = dedupeMitarbeiterListe(mitarbeiterListe);
-    // localStorage.setItem(MASTER_KEY, JSON.stringify(mitarbeiterListe));
-
     const accessToken = await getAccessToken();
-    const { driveId, folderId } = await ensureTargetIds();
+    if (!accessToken) throw new Error("Nicht angemeldet.");
 
     // 🔒 Duplikate entfernen + Schema-Version mitschicken
     const clean = dedupeMitarbeiterListe(mitarbeiterListe);
-   const data = { schemaVersion: 1, bestand, history, mitarbeiterListe: clean, mitarbeiterAustritte, nameAliases };
-
+    const data = {
+      schemaVersion: 1,
+      bestand,
+      history,
+      mitarbeiterListe: clean,
+      mitarbeiterAustritte,
+      nameAliases
+    };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 
-    const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
+    // 1) Normal versuchen
+    let { driveId, folderId } = await ensureTargetIds(false);
+    let url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
 
-    const r = await fetch(url, {
+    let r = await fetch(url, {
       method: "PUT",
       headers: { Authorization: `Bearer ${accessToken}` },
       body: blob
     });
 
-    if (!r.ok) throw new Error(await r.text());
+    // 2) Falls Zugriff verweigert: Cache löschen + neu auflösen + nochmal versuchen
+    if (r.status === 401 || r.status === 403) {
+      console.warn("⚠️ accessDenied beim Speichern – versuche Cache-Refresh…");
+      ({ driveId, folderId } = await ensureTargetIds(true));
+
+      url = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${folderId}:/bestand.json:/content?@microsoft.graph.conflictBehavior=replace`;
+      r = await fetch(url, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: blob
+      });
+    }
+
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      throw new Error(txt || `HTTP ${r.status}`);
+    }
+
     alert("✅ Daten gespeichert!");
   } catch (e) {
     console.error(e);
@@ -2821,6 +2841,7 @@ async function saveDataToOneDrive() {
     loginInProgress = false;
   }
 }
+
 async function saveAustritteToOneDrive() {
   try {
     const accessToken = await getAccessToken();
