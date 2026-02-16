@@ -77,16 +77,27 @@ async function ensureTargetIds() {
 
 
 
-let tokenInFlight = null;
+let tokenInProgress = null;
 
 async function getAccessToken() {
-  if (tokenInFlight) return tokenInFlight;
+  if (tokenInProgress) return tokenInProgress;
 
-  tokenInFlight = (async () => {
+  tokenInProgress = (async () => {
     const request = { scopes };
-    let account = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
 
-    // 1) silent versuchen
+    // Active account bevorzugen
+    let account = msalInstance.getActiveAccount();
+
+    // Wenn genau ein Konto vorhanden ist: setzen
+    if (!account) {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length === 1) {
+        account = accounts[0];
+        msalInstance.setActiveAccount(account);
+      }
+    }
+
+    // Silent zuerst
     if (account) {
       try {
         const t = await msalInstance.acquireTokenSilent({ ...request, account });
@@ -96,28 +107,23 @@ async function getAccessToken() {
       }
     }
 
-    // 2) interaktiv
-    try {
-      const login = await msalInstance.loginPopup(request);
-      msalInstance.setActiveAccount(login.account);
+    // Interaktiv – aber sicher (nur 1x, dank Lock)
+    const t = await msalInstance.acquireTokenPopup({
+      ...request,
+      prompt: "select_account"
+    });
 
-      const t = await msalInstance.acquireTokenSilent({ ...request, account: login.account });
-      return t.accessToken;
-    } catch (e) {
-      if (e && (e.errorCode === "popup_window_error" || e.errorCode === "popup_window_open_error")) {
-        await msalInstance.loginRedirect(request);
-        return null; // nach Redirect geht’s nicht direkt weiter
-      }
-      throw e;
-    }
+    msalInstance.setActiveAccount(t.account);
+    return t.accessToken;
   })();
 
   try {
-    return await tokenInFlight;
+    return await tokenInProgress;
   } finally {
-    tokenInFlight = null;
+    tokenInProgress = null;
   }
 }
+
 
 
 
@@ -2248,8 +2254,9 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   migriereHistorieLabel();
 
-  // ⚡️ hier zusätzlich laden
-  await loadAustritteFromOneDrive();
+// ✅ nicht automatisch beim Start laden (verhindert interaction_in_progress)
+// await loadAustritteFromOneDrive();
+
 
   updateDashboard();
   renderMitarbeiterTabelle();
