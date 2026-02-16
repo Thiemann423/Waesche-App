@@ -135,17 +135,45 @@ window.addEventListener("DOMContentLoaded", async () => {
 <style>
   body { font-family: sans-serif; padding: 20px; }
   input, select, textarea { display: block; margin-bottom: 10px; padding: 8px; width: 100%; }
+
   .artikel {
     margin-bottom: 10px;
     border: 1px solid #ccc;
     padding: 10px;
-    position: relative;           /* <- NEU: für den Close-Button */
+    position: relative; /* für Close-Button */
   }
-  canvas { border: 1px solid #000; width: 100%; height: 150px; touch-action: none; }
-  button { padding: 10px 20px; margin-top: 10px; }
-  .bestand-container, .dashboard-container { margin-top: 40px; padding: 20px; border: 1px solid #333; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+
+  canvas {
+    border: 1px solid #000;
+    width: 100%;
+    height: 150px;
+    touch-action: none;
+  }
+
+  button {
+    padding: 10px 20px;
+    margin-top: 10px;
+  }
+
+  .bestand-container,
+  .dashboard-container {
+    margin-top: 40px;
+    padding: 20px;
+    border: 1px solid #333;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+  }
+
   h2 { margin-top: 40px; }
 
   /* --- Tabelle Bestand schöner und kompakter --- */
@@ -154,14 +182,29 @@ window.addEventListener("DOMContentLoaded", async () => {
     width: 100%;
     box-sizing: border-box;
   }
+
   #bestandTabelle td { vertical-align: middle; }
-  #bestandTabelle button { display: block; margin: 4px auto; width: 90%; }
-  #bestandTabelle td:nth-child(1) {
-    width: 200px; max-width: 200px; word-break: break-word;
+
+  #bestandTabelle button {
+    display: block;
+    margin: 4px auto;
+    width: 90%;
   }
+
+  #bestandTabelle td:nth-child(1) {
+    width: 200px;
+    max-width: 200px;
+    word-break: break-word;
+  }
+
   #bestandTabelle td:nth-child(2),
-  #bestandTabelle td:nth-child(3) { width: 80px; text-align: center; }
+  #bestandTabelle td:nth-child(3) {
+    width: 80px;
+    text-align: center;
+  }
+
   #bestandTabelle td:nth-child(4) { width: 100px; }
+
   #bestandTabelle input.name-input { font-size: 0.9em; }
 
   /* ✖ Button in der Artikel-Zeile */
@@ -174,13 +217,57 @@ window.addEventListener("DOMContentLoaded", async () => {
     line-height: 1;
     cursor: pointer;
   }
+
   /* schmale Eingabe beim Spind-Editieren in der Tabelle */
-#mitarbeiterTabelle .edit-spind { max-width: 7em; }
+  #mitarbeiterTabelle .edit-spind {
+    max-width: 7em;
+  }
 
-  button[disabled]{ opacity:.6; cursor:not-allowed; }
-.is-busy::after{ content:" – wird gespeichert…"; font-style: italic; }
+  button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
+  .is-busy::after {
+    content: " – wird gespeichert…";
+    font-style: italic;
+  }
+
+  /* ==============================
+     ✅ Altbestand-Modus Toggle
+     ============================== */
+  .altbestand-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+  }
+
+  .altbestand-btn {
+    padding: 10px 14px;
+    border: 1px solid #999;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .altbestand-btn.is-off {
+    background: #f3f3f3;
+  }
+
+  .altbestand-btn.is-on {
+    background: #e9ffe9;
+    border-color: #3fa33f;
+  }
+
+  .altbestand-hint {
+    color: #666;
+    font-size: 0.95em;
+  }
 </style>
+
 
 
 
@@ -227,7 +314,76 @@ window.addEventListener("DOMContentLoaded", async () => {
 <body>
   <h1>Wäscheauftrag</h1>
 
-<!-- Datalist global --> <datalist id="artikelListeGlobal"> <!-- Optionen werden später per JavaScript befüllt --> </datalist> <select id="kategorieSelect" onchange="kategorieWechsel()"> <option value="frauen" selected>Mitarbeiterin</option> <option value="maenner">Mitarbeiter</option> <option value="zeitarbeiter">Zeitarbeiter</option> <option value="produktion">Produktion</option> </select> <label>Mitarbeiter suchen:</label> <input list="mitarbeiterListe" id="mitarbeiterInput"> <datalist id="mitarbeiterListe"></datalist> <label>Spindnummer suchen:</label> <input id="idInput" placeholder="z. B. 012 oder 12" oninput="sucheNachID()"> <label>Abteilung:</label> <input id="abteilung"> <label>Ausgabedatum:</label> <input type="date" id="datum"> <div id="artikelContainer"></div> <button onclick="addArtikel()">+ Artikel hinzufügen</button> <label>Bemerkung:</label> <textarea id="bemerkung"></textarea> <h3>Unterschrift Mitarbeiter</h3> <canvas id="sigMitarbeiter"></canvas> <button onclick="clearCanvas('sigMitarbeiter')">Löschen</button> <h3>Unterschrift Ausgabe</h3> <canvas id="sigAusgabe"></canvas> <button onclick="clearCanvas('sigAusgabe')">Löschen</button> <button id="btnAusgabe" onclick="abschliessen(this)"> Ausgabe abschließen & PDF speichern </button> <button id="btnRueckgabe" onclick="rueckgabeAbschliessen(this)"> Rückgabe abschließen & PDF speichern </button> <!-- NEU: Verwurf-Button --> <button id="btnVerwurf" onclick="verwurfAbschliessen(this)"> Verwurf (kaputt / verworfen) & PDF speichern </button>
+<!-- Datalist global -->
+<datalist id="artikelListeGlobal">
+  <!-- Optionen werden später per JavaScript befüllt -->
+</datalist>
+
+<select id="kategorieSelect" onchange="kategorieWechsel()">
+  <option value="frauen" selected>Mitarbeiterin</option>
+  <option value="maenner">Mitarbeiter</option>
+  <option value="zeitarbeiter">Zeitarbeiter</option>
+  <option value="produktion">Produktion</option>
+</select>
+
+<label>Mitarbeiter suchen:</label>
+<input list="mitarbeiterListe" id="mitarbeiterInput">
+<datalist id="mitarbeiterListe"></datalist>
+
+<label>Spindnummer suchen:</label>
+<input id="idInput" placeholder="z. B. 012 oder 12" oninput="sucheNachID()">
+
+<label>Abteilung:</label>
+<input id="abteilung">
+
+<label>Ausgabedatum:</label>
+<input type="date" id="datum">
+
+<div id="artikelContainer"></div>
+<button type="button" onclick="addArtikel()">+ Artikel hinzufügen</button>
+
+<label>Bemerkung:</label>
+<textarea id="bemerkung"></textarea>
+
+<h3>Unterschrift Mitarbeiter</h3>
+<canvas id="sigMitarbeiter"></canvas>
+<button type="button" onclick="clearCanvas('sigMitarbeiter')">Löschen</button>
+
+<h3>Unterschrift Ausgabe</h3>
+<canvas id="sigAusgabe"></canvas>
+<button type="button" onclick="clearCanvas('sigAusgabe')">Löschen</button>
+
+<!-- ✅ NEU: Altbestand-Modus Toggle (Bestand NICHT verändern) -->
+<div class="altbestand-toggle">
+  <button
+    type="button"
+    id="btnAltbestand"
+    class="altbestand-btn is-off"
+    aria-pressed="false"
+    onclick="toggleAltbestandMode()"
+  >
+    Altbestand-Modus: AUS
+  </button>
+  <span class="altbestand-hint">
+    Wenn AN: Bestand wird NICHT verändert (nur Historie/PDF)
+  </span>
+
+  <!-- interner Status -->
+  <input type="hidden" id="altbestandMode" value="0">
+</div>
+
+<button id="btnAusgabe" onclick="abschliessen(this)">
+  Ausgabe abschließen & PDF speichern
+</button>
+
+<button id="btnRueckgabe" onclick="rueckgabeAbschliessen(this)">
+  Rückgabe abschließen & PDF speichern
+</button>
+
+<button id="btnVerwurf" onclick="verwurfAbschliessen(this)">
+  Verwurf (kaputt / verworfen) & PDF speichern
+</button>
+
 
 
 
@@ -1117,13 +1273,34 @@ function lockAction(btn){
   return true;
 }
 
-function unlockAction(btn){
-  auftragBusy = false;
-  if (btn){ btn.disabled = false; btn.classList.remove('is-busy'); }
+/* =========================
+   Altbestand-Modus Toggle
+   ========================= */
+function toggleAltbestandMode() {
+  const hidden = document.getElementById("altbestandMode");
+  const btn = document.getElementById("btnAltbestand");
 
-  document.getElementById('btnAusgabe')?.removeAttribute('disabled');
-  document.getElementById('btnRueckgabe')?.removeAttribute('disabled');
-  document.getElementById('btnVerwurf')?.removeAttribute('disabled');    // NEU
+  const nowOn = hidden.value !== "1";
+  hidden.value = nowOn ? "1" : "0";
+
+  btn.setAttribute("aria-pressed", String(nowOn));
+  btn.textContent = nowOn ? "Altbestand-Modus: AN" : "Altbestand-Modus: AUS";
+  btn.classList.toggle("is-on", nowOn);
+  btn.classList.toggle("is-off", !nowOn);
+}
+
+/* ✅ HIER DIREKT DARUNTER */
+function resetAltbestandMode() {
+  const hidden = document.getElementById("altbestandMode");
+  const btn = document.getElementById("btnAltbestand");
+
+  if (!hidden || !btn) return;
+
+  hidden.value = "0";
+  btn.setAttribute("aria-pressed", "false");
+  btn.textContent = "Altbestand-Modus: AUS";
+  btn.classList.remove("is-on");
+  btn.classList.add("is-off");
 }
 
 
@@ -1131,6 +1308,7 @@ function unlockAction(btn){
 
 async function abschliessen(btn){
   if (!lockAction(btn)) { alert("⏳ Auftrag wird bereits gespeichert…"); return; }
+
   try {
     const mitarbeiterName = document.getElementById("mitarbeiterInput").value;
     const datum      = document.getElementById("datum").value;
@@ -1138,30 +1316,43 @@ async function abschliessen(btn){
     const abteilung  = document.getElementById("abteilung").value;
     const kategorie  = document.getElementById("kategorieSelect").value;
 
+    // ✅ Altbestand-Modus?
+    const istAltbestand =
+      document.getElementById("altbestandMode")?.value === "1";
+
     const ausgabeDetails = [];
+
     document.querySelectorAll("#artikelContainer .artikel").forEach(div => {
       const artikelInput = div.querySelector(".artikelSuchfeld");
-      const groesse     = div.querySelector("select:nth-of-type(1)").value;
-      const inputAnzahl = div.querySelector("input[type='number']");
-      const artikelName = artikelInput.value;
-      const anzahl      = parseInt(inputAnzahl.value, 10) || 0;
+      const groesse      = div.querySelector("select:nth-of-type(1)").value;
+      const inputAnzahl  = div.querySelector("input[type='number']");
+      const artikelName  = artikelInput.value;
+      const anzahl       = parseInt(inputAnzahl.value, 10) || 0;
 
       const nameKey = normalizeArtikelName(artikelName);
       if (!nameKey || anzahl <= 0) return;
 
-      if (!bestand[nameKey]) bestand[nameKey] = {};
-      if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
-      const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
-      bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
+      // ✅ Bestand nur reduzieren, wenn NICHT Altbestand
+      if (!istAltbestand) {
+        if (!bestand[nameKey]) bestand[nameKey] = {};
+        if (bestand[nameKey][groesse] === undefined) bestand[nameKey][groesse] = 0;
 
+        const alt = parseInt(bestand[nameKey][groesse], 10) || 0;
+        bestand[nameKey][groesse] = Math.max(alt - anzahl, 0);
+      }
+
+      // ✅ History immer schreiben (mit Markierung)
       history.push({
         datum: datum || new Date().toISOString().split("T")[0],
         mitarbeiter: mitarbeiterName,
-        empfaenger: (kategorie === "produktion") ? `Produktion: ${abteilung || ""}` : (mitarbeiterName || ""),
+        empfaenger: (kategorie === "produktion")
+          ? `Produktion: ${abteilung || ""}`
+          : (mitarbeiterName || ""),
         artikel: artikelName,
         groesse: groesse || "-",
         anzahl,
-        typ: "ausgabe",
+        typ: istAltbestand ? "altbestand" : "ausgabe",
+        bestandRelevant: !istAltbestand,
         kategorie,
         abteilung: abteilung || ""
       });
@@ -1169,6 +1360,7 @@ async function abschliessen(btn){
       ausgabeDetails.push(`${artikelName} (${groesse}) - ${anzahl} Stk.`);
     });
 
+    // Speichern + UI aktualisieren
     localStorage.setItem('bestand', JSON.stringify(bestand));
     localStorage.setItem('history', JSON.stringify(history));
     updateBestandTabelle();
@@ -1176,20 +1368,25 @@ async function abschliessen(btn){
 
     await generatePDF(mitarbeiterName, datum, ausgabeDetails, bemerkung, abteilung, kategorie);
 
-    // Felder leeren und sauber beenden
+    // Felder leeren
     document.getElementById("artikelContainer").innerHTML = "";
     document.getElementById("bemerkung").value = "";
     clearCanvas('sigMitarbeiter');
     clearCanvas('sigAusgabe');
 
     alert("✅ Ausgabe abgeschlossen, Bestand aktualisiert und PDF in OneDrive gespeichert.");
+
+    // ✅ NEU: Altbestand-Modus automatisch zurücksetzen
+    resetAltbestandMode();
+
     location.reload(); // entsperrt automatisch durch Reload
   } catch (e) {
     console.error(e);
     alert("❌ PDF/Upload fehlgeschlagen.");
-    unlockAction(btn); // nur bei Fehler wieder freigeben
+    unlockAction(btn);
   }
- }
+}
+
 
 
 
