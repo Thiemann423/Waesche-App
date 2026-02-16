@@ -34,7 +34,14 @@
     localStorage.setItem(SHARE_KEY, SHARE_URL);
   }
 
-  function b64u(s){ return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function b64u(str) {
+  // robust für Unicode/URLs
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 
 async function ensureTargetIds() {
   let driveId  = localStorage.getItem("WAESCHE_DRIVE_ID");
