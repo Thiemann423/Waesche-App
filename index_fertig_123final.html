@@ -1810,15 +1810,15 @@ function saveBestand() {
     const newNameRaw = (nameInput.value || "").trim();
     const newKey     = normalizeArtikelName(newNameRaw);
     const size       = (groesseInput.value || "").trim();
-    let qty          = parseInt(qtyInput.value, 10);
-    if (isNaN(qty)) qty = 0;
-    if (qty < 0) qty = 0; // keine negativen Bestände
+
+    let qty = parseInt(qtyInput.value, 10);
+    if (isNaN(qty) || qty < 0) qty = 0;
+
     if (!newKey || !size) return;
 
     if (!neu[newKey]) neu[newKey] = {};
     neu[newKey][size] = (neu[newKey][size] || 0) + qty;
 
-    // Artikelnr. beim Umbenennen mitnehmen
     const origKey = normalizeArtikelName(nameInput.dataset.originalName || newNameRaw);
     if (origKey && artikelStamm[origKey] && !artikelStamm[newKey]) {
       artikelStamm[newKey] = artikelStamm[origKey];
@@ -1826,9 +1826,8 @@ function saveBestand() {
     if (origKey) seenOriginalKeys.add(origKey);
   });
 
-  // ✅ WICHTIG: KEIN Löschen mehr bei 0 – Artikel bleiben mit Bestand 0 sichtbar
+  // ✅ NICHT löschen bei 0!
 
-  // Alte artikelStamm-Keys aufräumen, wenn Name komplett verschwunden ist
   seenOriginalKeys.forEach(orig => {
     if (artikelStamm[orig] && !neu[orig]) delete artikelStamm[orig];
   });
@@ -1843,6 +1842,7 @@ function saveBestand() {
 
   alert("✅ Alle Änderungen gespeichert.");
 }
+
 
 
 
